@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+   <body>
+
+      <table border = 1>
+         <tr>
+             <th>Member ID</th>
+             <th>Name</th>
+             <th>Metro</th>
+             <th>Zip Code</th>
+             <th>Language</th>
+             <th>Industry</th>
+             <th>Skills</th>
+             <th>Summary</th>
+             <th>Current Company</th>
+             <th>Current Title</th>
+             <th>Current Description</th>
+             <th>Current Work Dates</th>
+             <th>Public URL</th>
+             <th>Recruiter URL</th>
+         </tr>
+
+         {% for row in rows %}
+            <tr>
+                <td>{{row['member_id']}}</td>
+                <td>{{row["name"]}}</td>
+                <td>{{row["metro"]}}</td>
+                <td>{{row["zip_code"]}}</td>
+                <td>{{row["language"]}}</td>
+                <td>{{row["industry"]}}</td>
+                <td>{{row["skills"]}}</td>
+                <td>{{row["summary"]}}</td>
+                <td>{{row["company_0"]}}</td>
+                <td>{{row["title_0"]}}</td>
+                <td>{{row["description_0"]}}</td>
+                <td>{{row["dates_0"]}}</td>
+                <td>{{row["public_url"]}}</td>
+                <td>{{row["recruiter_url"]}}</td>
+            </tr>
+         {% endfor %}
+      </table>
+   </body>
+</html>
