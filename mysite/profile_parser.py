@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup as bs
 import re
 import pickle
 
+
+
 class LinkedInProfile(object):
 
     def __init__(self, member_id, raw_html, recruiter_url):
@@ -27,15 +29,20 @@ class LinkedInProfile(object):
 
         name = self.doc.find("h1").get_text()
         self.name = name
+        print(name)
 
         metro = self.extractText(self.doc.select("div.profile-info .location.searchable"))
         self.metro = metro
+        print(metro)
 
-        zip_code = self.extractText(self.doc.select("div.profile-info .location.searchable a"), get_href=True)
+        zip_code = self.doc.select("div.profile-info .location.searchable a")[0]
         zip_code_search = re.compile(r"postalCode=[0-9]{5}")
-        zip_code_lookup = zip_code_search.findall(zip_code)[0]
-        zip_code = zip_code_lookup.split("=")[-1]
-        self.zip_code = zip_code
+        if zip_code:
+            location_url = zip_code['href']
+            zip_code_lookup = zip_code_search.findall(location_url)[0]
+            zip_code = zip_code_lookup.split("=")[-1]
+            print(zip_code)
+            self.zip_code = zip_code
 
         self.work_history = self.jobHistory()
 
@@ -94,7 +101,7 @@ class LinkedInProfile(object):
             if 'extract_date' in kwargs:
                 manual_text = manual_element.get_text(",").split(",")[0]
             elif 'get_href' in kwargs:
-                manual_text = manual_element.get_attribute_list('href')[0]
+                manual_text = manual_element['href']
             else:
                 manual_text = manual_element.get_text()
 
@@ -175,7 +182,6 @@ class LinkedInProfile(object):
 
             for kv in these_keys:
                 work_history[kv[0]] = kv[1]
-
 
         return work_history
 

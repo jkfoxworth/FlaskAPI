@@ -1,19 +1,31 @@
-import os
+from app_config import AppConfiguration
 from flask import Flask, render_template, session, redirect, url_for, request, abort, jsonify
-from mysite.profile_parser import LinkedInProfile
+from profile_parser import LinkedInProfile
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+from flask_login import login_user, LoginManager, UserMixin, login_required, logout_user, current_user
+from werkzeug.security import check_password_hash
+from datetime import datetime
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///profiles.sqlite3'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+for k, v in AppConfiguration.db_values.items():
+    app.config[k] = v
+
 
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
+app.secret_key = AppConfiguration.secret_key
+login_manager = LoginManager()
+login_manager.init_app(app)
 
 class LinkedInRecord(db.Model):
     __tablename__ = 'Profiles'
     member_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128))
+    created = db.Column(db.DateTime, default=datetime.utcnow)
+    updated = db.Column(db.DateTime, default=datetime.utcnow)
     metro = db.Column(db.Text)
     zip_code = db.Column(db.Text)
     language = db.Column(db.Text)
@@ -73,13 +85,58 @@ class LinkedInRecord(db.Model):
 
 
 
+class User(UserMixin, db.Model):
+
+    __tablename__ = "Users"
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(128))
+    password_hash = db.Column(db.String(128))
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    def get_id(self):
+        return self.username
+
+
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.filter_by(username=user_id).first()
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    return '<h1>Hello</h1>'
+    return render_template('welcome.html')
+
+@app.route('/login/', methods=['GET', 'POST'])
+def login():
+    if request.method == "GET":
+        return render_template("login_page.html", error=False)
+
+    user = load_user(request.form['username'])
+    if user is None:
+        return render_template("login_page.html", error=True)
+
+    if not user.check_password(request.form['password']):
+        return render_template('login_page.html', error=True)
+
+    login_user(user)
+    return redirect(url_for('index'))
+
+@app.route("/logout/")
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
+
 
 @app.route('/profiles', methods=['GET'])
 def list():
+    if not current_user.is_authenticated:
+        return redirect(url_for('index'))
     return render_template("list.html", rows=LinkedInRecord.query.all())
 
 @app.route('/api/v1/profiles', methods=['POST'])
@@ -93,6 +150,8 @@ def profile():
         'raw_html': request.json['raw_html']
         }
 
+    print(profile['raw_html'])
+
     pp = LinkedInProfile(member_id=profile['member_id'], recruiter_url=profile['recruiter_url'],
                          raw_html=profile['raw_html'])
 
@@ -100,13 +159,9 @@ def profile():
 
     # Is the profile already present?
 
-
-
     db.session.add(profile_record)
-    print("Added")
     db.session.commit()
     return jsonify({'status': 'success'}), 201
 
 if __name__ == '__main__':
-    db.create_all()
     app.run()
