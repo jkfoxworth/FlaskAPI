@@ -2,23 +2,28 @@ from app_config import AppConfiguration
 from flask import Flask, render_template, session, redirect, url_for, request, abort, jsonify
 from profile_parser import LinkedInProfile
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import or_, text
 from flask_migrate import Migrate
 from flask_login import login_user, LoginManager, UserMixin, login_required, logout_user, current_user
 from werkzeug.security import check_password_hash
 from datetime import datetime
 
 app = Flask(__name__)
-
+app.config['DEBUG'] = True
 for k, v in AppConfiguration.db_values.items():
     app.config[k] = v
 
-
 db = SQLAlchemy(app)
+
+if AppConfiguration.create_all is True:
+    db.create_all()
+
 migrate = Migrate(app, db)
 
 app.secret_key = AppConfiguration.secret_key
 login_manager = LoginManager()
 login_manager.init_app(app)
+login_manager.login_view = AppConfiguration.login_view
 
 class LinkedInRecord(db.Model):
     __tablename__ = 'Profiles'
@@ -126,6 +131,50 @@ def login():
     login_user(user)
     return redirect(url_for('index'))
 
+@app.route('/search', methods=['GET', 'POST'])
+@login_required
+def search():
+
+    if request.method == 'GET':
+        return render_template('search.html', success='None')
+
+    elif request.method == 'POST':
+
+
+        search_query = {'title_0': '%{}%'.format(request.form.get('job_title', 'empty')),
+                        'company_0': '%{}%'.format(request.form.get('company', 'empty')),
+                        'metro': '%{}%'.format(request.form.get('metro', 'empty'))}
+                        # 'keywords': '%{}%'.format(request.form.get('keywords', 'empty'))}
+
+
+        search_query = {k: v for (k, v) in search_query.items() if v != '%empty%' and v != '%%'}
+        print(search_query)
+
+        if search_query == {}:
+            return render_template('search.html', success='None')
+
+        base_query = LinkedInRecord.query
+        for k, v in search_query.items():
+
+            base_query = base_query.filter(LinkedInRecord.__dict__[k].ilike(v))
+
+        print(base_query)
+        search_results = base_query.all()
+        print(search_results)
+
+        # TODO Better way to define headers, return values
+
+        headers = ['Name', 'Job Title', 'Company', 'Location', 'Skills']
+        results = []
+        for searched_result in search_results:
+            result_tuple = (searched_result.name, searched_result.title_0, searched_result.company_0, searched_result.metro, searched_result.skills)
+            results.append(result_tuple)
+        if results:
+            print("Prinitng results")
+            return render_template('results.html', success='True', headers=headers, results=results)
+        else:
+            return render_template('search.html', success='False')
+
 @app.route("/logout/")
 @login_required
 def logout():
@@ -134,9 +183,8 @@ def logout():
 
 
 @app.route('/profiles', methods=['GET'])
+@login_required
 def list():
-    if not current_user.is_authenticated:
-        return redirect(url_for('index'))
     return render_template("list.html", rows=LinkedInRecord.query.all())
 
 @app.route('/api/v1/profiles', methods=['POST'])

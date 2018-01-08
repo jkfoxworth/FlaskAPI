@@ -28,6 +28,7 @@
       <ul class="nav navbar-nav navbar-left">
         {% if current_user.is_authenticated %}
         <li><a href="/profiles">ACCESS RECORDS</a></li>
+        <li><a href="/search">SEARCH RECORDS</a></li>
           <li><a href="{{ url_for('logout') }}">LOG OUT</a></li>
 
           {% else %}

@@ -1,0 +1,34 @@
+
+{% include 'search.html' %}
+
+{% block results %}
+{% if success == 'True' %}
+<div class="container-fluid bg-grey text-center">
+    <table class="table">
+    <thead>
+      <tr>
+          {% for header in headers %}
+        <th class="text-center">{{ header }}</th>
+          {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+        {% for v in results %}
+      <tr>
+          {% for sub_v in v %}
+        <td> {{ sub_v }} </td>
+            {% endfor %}
+      </tr>
+        {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% elif success == 'False' %}
+<div class="container-fluid">
+    <h2>No Results Found</h2>
+</div>
+{% elif success == 'None' %}
+<div class="container-fluid"></div>
+
+{% endif %}
+{% endblock %}

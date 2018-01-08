@@ -3,8 +3,6 @@ from bs4 import BeautifulSoup as bs
 import re
 import pickle
 
-
-
 class LinkedInProfile(object):
 
     def __init__(self, member_id, raw_html, recruiter_url):
