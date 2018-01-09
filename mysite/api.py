@@ -8,6 +8,7 @@ from flask_login import login_user, LoginManager, UserMixin, login_required, log
 from werkzeug.security import check_password_hash
 from datetime import datetime, date
 
+
 app = Flask(__name__)
 app.config['DEBUG'] = True
 for k, v in AppConfiguration.db_values.items():
@@ -221,6 +222,16 @@ def profile():
     db.session.add(profile_record)
     db.session.commit()
     return jsonify({'status': 'success'}), 201
+
+@app.route('/api/v1/bulk_profiles', methods=['POST'])
+def profile_bulk():
+
+    print(request)
+
+    if not request.json:
+        abort(400)
+
+    print(request.json)
 
 if __name__ == '__main__':
     app.run()

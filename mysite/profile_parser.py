@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from bs4 import BeautifulSoup as bs
 import re
 import pickle
@@ -251,38 +251,77 @@ class LinkedInProfile(object):
 
         self.sqlData = saved_profile
 
-        db.Column(db.Integer, primary_key=True)
-        db.Column(db.String)
-        db.Column(db.Date, default=date.today())
-        db.Column(db.Date)
-        db.Column(db.Text)
-        db.Column(db.Text)
-        db.Column(db.Text)
-        db.Column(db.Text)
-        db.Column(db.Text)
-        db.Column(db.Text)
-        db.Column(db.Text)
-        db.Column(db.Text)
-        db.Column(db.Text)
-        db.Column(db.Date)
-        db.Column(db.Date)
-        db.Column(db.Text)
-        db.Column(db.Text)
-        db.Column(db.Text)
-        db.Column(db.Text)
-        db.Column(db.Date)
-        db.Column(db.Date)
-        db.Column(db.Text)
-        db.Column(db.Text)
-        db.Column(db.Text)
-        db.Column(db.Text)
-        db.Column(db.Date)
-        db.Column(db.Date)
-        db.Column(db.Text)
-        db.Column(db.Text)
-        db.Column(db.Date)
-        db.Column(db.Date)
-        db.Column(db.Text)
-        db.Column(db.Text)
-        db.Column(db.Text)
-        db.Column(db.Text)
+class LinkedInAjax(object):
+
+    max_positions = 3
+    accept_pos_keys = ['companyName', 'summary', 'title', 'startDateYear', 'companyUrl', 'location', 'startDateMonth',
+                       'companyId', 'endDateMonth', 'endDateYear']
+
+
+
+    def __init__(self, json_data):
+        self.json_data = json_data
+        self.sqlData = None
+
+    def date_helper(self, code_dict, index):
+        if code_dict.get('startDateYear_{}'.format(index), False) is True:
+        start_month = code_dict.get('startDateMonth_{}'.format(index), False)
+        start_day = 1
+
+        if start_year is False:
+            return {}
+        else:
+            start_date = date(year=start_year, month=start_month, day=start_day)
+
+        end_year = code_dict.get('endDateYear_{}'.format(index), False)
+        end_month = code_dict.get('endDateMonth_{}'.format(index), False)
+        end_day = 1
+
+        if all(e is not False for e in [end_year, end_month, end_day]):
+            end_date = date(year=end_year, month=end_month, day=end_day)
+            return {'start': start_date,
+                    'end': end_date}
+        else:
+            return {'start': start_date}
+
+
+
+
+
+
+
+
+    def sqlProfile(self):
+        # companyName
+        # summary
+        # title
+        # startDateYear
+        # companyUrl
+        # current
+        # positionId
+        # companyLogo
+        # searchTitleUrl
+        # location
+        # startDateMonth
+        # displayText
+        # i18nStartDate
+        # durationInMonths
+        # searchCompanyUrl
+        # companyId
+
+        positions_ = self.json_data.get('positions', False)
+        if positions_:
+            positions = positions_[0:(self.max_positions + 1)]
+            # Remove the 'referenceCount' key
+            positions = [s['position'] for s in positions]
+            for index, pos in enumerate(positions):
+                filtered_pos = {k: v for (k, v) in positions[0].items() if k in self.accept_pos_keys}
+                pos_dict = {'{}_{}'.format(k, index): v for (k, v) in filtered_pos.items()}
+
+
+
+
+
+
+
+
