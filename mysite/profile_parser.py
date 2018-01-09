@@ -5,23 +5,47 @@ import pickle
 
 class LinkedInProfile(object):
 
-    def __init__(self, member_id, raw_html, recruiter_url):
-        self.doc = bs(raw_html, 'html.parser')
-        self.member_id = member_id
+    '''
+    raw: json POST data
+    '''
+
+    def __init__(self, raw):
+        self.raw = raw
+        self.member_id = None
         self.name = None
+        self.created = None
+        self.updated = None
         self.metro = None
         self.zip_code = None
         self.language = None
         self.industry = None
         self.skills = None
         self.summary = None
-        self.work_history = None
-        self.education = None
+        self.company_0 = None
+        self.company_url_0 = None
+        self.title_0 = None
+        self.start_date_0 = None
+        self.end_date_0 = None
+        self.description_0 = None
+        self.company_1 = None
+        self.company_url_1 = None
+        self.title_1 = None
+        self.start_date_1 = None
+        self.end_date_1 = None
+        self.description_1 = None
+        self.company_2 = None
+        self.company_url_2 = None
+        self.title_2 = None
+        self.start_date_2 = None
+        self.end_date_2 = None
+        self.description_2 = None
+        self.education_school = None
+        self.education_start = None
+        self.education_end = None
+        self.education_degree = None
+        self.education_study_field = None
         self.public_url = None
-        self.sqlData = None
-        self.recruiter_url = recruiter_url
-        self.extractContent()
-        self.sqlProfile()
+        self.recruiter_url = None
 
     def extractContent(self):
 
@@ -226,3 +250,39 @@ class LinkedInProfile(object):
                          }
 
         self.sqlData = saved_profile
+
+        db.Column(db.Integer, primary_key=True)
+        db.Column(db.String)
+        db.Column(db.Date, default=date.today())
+        db.Column(db.Date)
+        db.Column(db.Text)
+        db.Column(db.Text)
+        db.Column(db.Text)
+        db.Column(db.Text)
+        db.Column(db.Text)
+        db.Column(db.Text)
+        db.Column(db.Text)
+        db.Column(db.Text)
+        db.Column(db.Text)
+        db.Column(db.Date)
+        db.Column(db.Date)
+        db.Column(db.Text)
+        db.Column(db.Text)
+        db.Column(db.Text)
+        db.Column(db.Text)
+        db.Column(db.Date)
+        db.Column(db.Date)
+        db.Column(db.Text)
+        db.Column(db.Text)
+        db.Column(db.Text)
+        db.Column(db.Text)
+        db.Column(db.Date)
+        db.Column(db.Date)
+        db.Column(db.Text)
+        db.Column(db.Text)
+        db.Column(db.Date)
+        db.Column(db.Date)
+        db.Column(db.Text)
+        db.Column(db.Text)
+        db.Column(db.Text)
+        db.Column(db.Text)
