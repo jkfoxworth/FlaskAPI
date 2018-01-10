@@ -61,46 +61,45 @@ class LinkedInRecord(db.Model):
     education_end = db.Column(db.Date)
     education_degree = db.Column(db.Text)
     education_study_field = db.Column(db.Text)
-    public_url = db.Column(db.Text)
-    recruiter_url = db.Column(db.Text)
+    public_url = db.Column(db.Text, unique=True)
+    recruiter_url = db.Column(db.Text, unique=True)
 
-    def __init__(self, sd):
+    def __init__(self, LinkedInProfile):
 
-        self.member_id = sd['member_id']
-        self.name = sd['name']
-        self.metro = sd['metro']
-        self.postal_code = sd['postal_code']
-        self.country_code = sd['country_code']
-        self.language = sd['language']
-        self.industry = sd['industry']
-        self.skills = sd['skills']
-        self.summary = sd['summary']
-        self.company_name_0 = sd['companyName_0']
-        self.company_url_0 = sd['companyUrl_0']
-        self.title_0 = sd['title_0']
-        self.start_date_0 = sd['start_dates_0']
-        self.end_date_0 = sd['end_dates_0']
-        self.description_0 = sd['description_0']
-        self.company_name_1 = sd['companyName_1']
-        self.company_url_1 = sd['companyUrl_1']
-        self.title_1 = sd['title_1']
-        self.start_date_1 = sd['start_date_1']
-        self.end_date_1 = sd['end_date_1']
-        self.description_1 = sd['description_1']
-        self.company_name_2 = sd['companyName_2']
-        self.company_url_2 = sd['companyUrl_2']
-        self.title_2 = sd['title_2']
-        self.start_date_2 = sd['start_date_2']
-        self.dates_2 = sd['dates_2']
-        self.description_2 = sd['description_2']
-        self.work_history = sd['work_history']
-        self.education_school = sd['education_school']
-        self.education_start = sd['education_start']
-        self.education_end = sd['education_end']
-        self.education_degree = sd['education_degree']
-        self.education_study_field = sd['education_study_field']
-        self.public_url = sd['public_url']
-        self.recruiter_url = sd['recruiter_url']
+        self.member_id = LinkedInProfile.member_id
+        self.name = LinkedInProfile.name
+        self.metro = LinkedInProfile.metro
+        self.postal_code = LinkedInProfile.postal_code
+        self.country_code = LinkedInProfile.country_code
+        self.language = LinkedInProfile.language
+        self.industry = LinkedInProfile.industry
+        self.skills = LinkedInProfile.skills
+        self.summary = LinkedInProfile.summary
+        self.company_name_0 = LinkedInProfile.companyName_0
+        self.company_url_0 = LinkedInProfile.companyUrl_0
+        self.title_0 = LinkedInProfile.title_0
+        self.start_date_0 = LinkedInProfile.start_date_0
+        self.end_date_0 = LinkedInProfile.end_date_0
+        self.summary_0 = LinkedInProfile.summary_0
+        self.company_name_1 = LinkedInProfile.companyName_1
+        self.company_url_1 = LinkedInProfile.companyUrl_1
+        self.title_1 = LinkedInProfile.title_1
+        self.start_date_1 = LinkedInProfile.start_date_1
+        self.end_date_1 = LinkedInProfile.end_date_1
+        self.summary_1 = LinkedInProfile.summary_1
+        self.company_name_2 = LinkedInProfile.companyName_2
+        self.company_url_2 = LinkedInProfile.companyUrl_2
+        self.title_2 = LinkedInProfile.title_2
+        self.start_date_2 = LinkedInProfile.start_date_2
+        self.end_date_2= LinkedInProfile.end_date_2
+        self.summary_2 = LinkedInProfile.summary_2
+        self.education_school = LinkedInProfile.education_school
+        self.education_start = LinkedInProfile.education_start
+        self.education_end = LinkedInProfile.education_end
+        self.education_degree = LinkedInProfile.education_degree
+        self.education_study_field = LinkedInProfile.education_study_field
+        self.public_url = LinkedInProfile.public_url
+        self.recruiter_url = LinkedInProfile.recruiter_url
 
 
 class User(UserMixin, db.Model):
@@ -205,34 +204,18 @@ def profile():
     if not request.json:
         abort(400)
 
-    profile = {
-        'member_id': request.json['id'],
-        'recruiter_url': request.json['purl'],
-        'raw_html': request.json['raw_html']
-        }
+    data = request.json
 
-    print(profile['raw_html'])
+    parsed_data = LinkedInProfile(data)
+    print(parsed_data)
 
-    pp = LinkedInProfile(member_id=profile['member_id'], recruiter_url=profile['recruiter_url'],
-                         raw_html=profile['raw_html'])
-
-    profile_record = LinkedInRecord(pp.sqlData)
+    profile_record = LinkedInRecord(parsed_data)
 
     # Is the profile already present?
-
+    #
     db.session.add(profile_record)
     db.session.commit()
     return jsonify({'status': 'success'}), 201
-
-@app.route('/api/v1/bulk_profiles', methods=['POST'])
-def profile_bulk():
-
-    print(request)
-
-    if not request.json:
-        abort(400)
-
-    print(request.json)
 
 if __name__ == '__main__':
     app.run()

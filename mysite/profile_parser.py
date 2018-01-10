@@ -3,12 +3,6 @@ import re
 import json
 from operator import itemgetter
 
-# Testing
-f = r"C:\Users\estasney\PycharmProjects\FlaskAPIWeb\mysite\sample_json.json"
-fp = open(f, "r")
-code = json.loads(fp.read())
-fp.close()
-
 class LinkedInProfile(object):
     """
     Class that handles transforming JSON POST Data to Inserting to MySQL DB
@@ -152,7 +146,7 @@ class LinkedInProfile(object):
                 all_lang = []
                 for l in languages:
                     all_lang.append(l.get('languageName', ''))
-                self.language = ', '.join(languages)
+                self.language = ', '.join(all_lang)
 
             self.industry = profile_.get('industry', None)
 
@@ -215,18 +209,3 @@ class LinkedInProfile(object):
         if found_country:
             country_code = found_country[0].split("=")[1]
             self.country_code = country_code
-
-
-
-
-# Testing
-
-record = LinkedInProfile(code)
-
-
-
-
-
-
-
-
