@@ -10,7 +10,7 @@ from datetime import datetime, date
 
 
 app = Flask(__name__)
-app.config['DEBUG'] = True
+app.config['DEBUG'] = False
 for k, v in AppConfiguration.db_values.items():
     app.config[k] = v
 
@@ -207,7 +207,6 @@ def profile():
     data = request.json
 
     parsed_data = LinkedInProfile(data)
-    print(parsed_data)
 
     profile_record = LinkedInRecord(parsed_data)
 
