@@ -1,228 +1,211 @@
-from datetime import datetime
-from bs4 import BeautifulSoup as bs
+from datetime import date
 import re
-import pickle
+import json
+from operator import itemgetter
 
 class LinkedInProfile(object):
+    """
+    Class that handles transforming JSON POST Data to Inserting to MySQL DB
+    :param raw: JSON Data as received from Flask
+    """
 
-    def __init__(self, member_id, raw_html, recruiter_url):
-        self.doc = bs(raw_html, 'html.parser')
-        self.member_id = member_id
+    def __init__(self, raw):
+        self.raw = raw['data']
+        self.member_id = None
         self.name = None
+        self.created = None
+        self.updated = None
         self.metro = None
-        self.zip_code = None
+        self.postal_code = None
+        self.country_code = None
         self.language = None
         self.industry = None
         self.skills = None
         self.summary = None
-        self.work_history = None
-        self.education = None
+        self.companyName_0 = None
+        self.companyUrl_0 = None
+        self.title_0 = None
+        self.start_date_0 = None
+        self.end_date_0 = None
+        self.summary_0 = None
+        self.companyName_1 = None
+        self.companyUrl_1 = None
+        self.title_1 = None
+        self.start_date_1 = None
+        self.end_date_1 = None
+        self.summary_1 = None
+        self.companyName_2 = None
+        self.companyUrl_2 = None
+        self.title_2 = None
+        self.start_date_2 = None
+        self.end_date_2 = None
+        self.summary_2 = None
+        self.education_school = None
+        self.education_start = None
+        self.education_end = None
+        self.education_degree = None
+        self.education_study_field = None
         self.public_url = None
-        self.sqlData = None
-        self.recruiter_url = recruiter_url
-        self.extractContent()
-        self.sqlProfile()
+        self.recruiter_url = None
+        self.parse_positions()
+        self.parse_profile()
 
-    def extractContent(self):
+    def parse_positions(self):
 
-        name = self.doc.find("h1").get_text()
-        self.name = name
-        print(name)
+        accept_pos_keys = ['companyName', 'summary', 'title', 'startDateYear', 'companyUrl', 'location',
+                           'startDateMonth',
+                           'companyId', 'endDateMonth', 'endDateYear']
 
-        metro = self.extractText(self.doc.select("div.profile-info .location.searchable"))
-        self.metro = metro
-        print(metro)
+        positions_ = self.raw.get('positions', False)
+        if positions_:
+            # Accept only 3 positions
+            positions = positions_[0:3]
+            # Remove the 'referenceCount' key
+            positions = [s['position'] for s in positions]
+            # Clever? way to match keys and values
+            for index, pos in enumerate(positions):
+                filtered_pos = {k: v for (k, v) in positions[index].items() if k in accept_pos_keys}
+                pos_dict = {'{}_{}'.format(k, index): v for (k, v) in filtered_pos.items()}
 
-        zip_code = self.doc.select("div.profile-info .location.searchable a")[0]
-        zip_code_search = re.compile(r"postalCode=[0-9]{5}")
-        if zip_code:
-            location_url = zip_code['href']
-            zip_code_lookup = zip_code_search.findall(location_url)[0]
-            zip_code = zip_code_lookup.split("=")[-1]
-            print(zip_code)
-            self.zip_code = zip_code
+                dated_dict = self.date_logic_helper(pos_dict, index)
 
-        self.work_history = self.jobHistory()
+                # We want to combine start|endDateMonth|Year to one
+                # Pass to helper function. Handles updating dictionary
 
-        language = self.extractText(self.doc.select("#profile-language .searchable"))
-        self.language = language
-
-        industry = self.extractText(self.doc.select(".industry a"))
-        self.industry = industry
-
-        skills = self.extractText(self.doc.select(".skill"))
-        self.skills = skills
-
-        summary = self.extractText(self.doc.select("#profile-summary .searchable"))
-        self.summary = summary
-
-        self.education = self.parseEducation()
-
-        public_url = self.extractText(self.doc.select(".public-profile a"), get_href=True)
-        self.public_url = public_url
-
-    def parseEducation(self):
-        schools = self.doc.select("#profile-education h4")
-        edu_date_range = self.doc.select("#profile-education .date-range")
-        edu_degree = self.doc.select("#profile-education h5")
-
-        education = []
-
-        if not schools:
-            return {}
-
-        for index, s in enumerate(schools):
-            school = self.extractText(s)
-            try:
-                school_dates = self.extractText(edu_date_range[index])
-            except IndexError:
-                school_dates = 0
-            try:
-                edu_degr = self.extractText(edu_degree[index])
-            except IndexError:
-                edu_degr = 0
-
-            td = {'School': school, 'School_Dates': school_dates, 'Degree': edu_degr}
-            education.append(td)
-
-        return education
-
-    def extractText(self, element, **kwargs):
-
-        if kwargs:
-            if 'position_select' in kwargs:
-                manual_position = kwargs['position_select']
-            else:
-                manual_position = 0
-
-            manual_element = element[manual_position]
-            if 'extract_date' in kwargs:
-                manual_text = manual_element.get_text(",").split(",")[0]
-            elif 'get_href' in kwargs:
-                manual_text = manual_element['href']
-            else:
-                manual_text = manual_element.get_text()
+                for k, v in dated_dict.items():
 
 
+                    self.__dict__[k] = v
 
-            return manual_text
+    def date_format_helper(self, month, year):
 
-        if len(element) == 1:
-            if isinstance(element, list):
+        parsed_date = date(year=year, month=month, day=1)
+        return parsed_date
 
-                return " ".join(element[0].get_text().split())
-            else:
-                return " ".join(element.get_text().split())
+    def date_logic_helper(self, pos_dict, index):
+        # Should always have begin date
+
+        startYearString = 'startDateYear_{}'.format(index)
+        startMonthString = 'startDateMonth_{}'.format(index)
+        endYearString = 'endDateYear_{}'.format(index)
+        endMonthString = 'endDateMonth_{}'.format(index)
+
+        start_date_year = pos_dict.get(startYearString, False)
+        start_date_month = pos_dict.get(startMonthString, False)
+
+        # Replace seperate year, month keys with one
+        # Start dates
+        pos_dict.pop(startYearString)
+
+        # Month may not be present
+        if start_date_month is False:
+            start_date_month = 1
         else:
-            element_text = []
-            for sub_element in element:
-                element_text.append(sub_element.get_text())
-            return ', '.join(element_text)
+            pos_dict.pop(startMonthString)
 
+        pos_dict['start_date_{}'.format(index)] = self.date_format_helper(month=start_date_month, year=start_date_year)
 
-    def strpTimeHelper(self, date_string):
-        months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
-                  "November", "December"]
-        months = set(months)
-        includes_months = False
-        for m in months:
-            if m in date_string:
-                includes_months = True
-                break
-        if includes_months:
-            dt = datetime.strptime(date_string, "%B, %Y")
+        # If this is current role, we are done. Else we need to do the same for end dates
+
+        if endYearString not in pos_dict:
+            return pos_dict
+
+        end_date_year = pos_dict.get(endYearString, False)
+        end_date_month = pos_dict.get(endMonthString, False)
+
+        # Pop and replace, again
+
+        pos_dict.pop(endYearString)
+        if end_date_month is False:
+            end_date_month = 1
         else:
-            dt = datetime.strptime(date_string, "%Y")
+            pos_dict.pop(endMonthString)
 
-        return dt
+        pos_dict['end_date_{}'.format(index)] = self.date_format_helper(month=end_date_month, year=end_date_year)
 
+        return pos_dict
 
-    def parseDates(self, date_range):
+    def parse_profile(self):
 
-        current_time = datetime.now()
+        profile_ = self.raw.get('profile', False)
+        if profile_:
+            self.member_id = profile_.get('memberId')
+            self.name = "<first>{}</first> <last>{}</last>".format(profile_.get('firstName', ""),
+                                                                   profile_.get('lastName', ""))
+            # TODO self.created is it a new record or an update?
+            # TODO self.updated
 
-        # Extract years in position
-        if 'Present' in date_range:
-            end_time = current_time
-        else:
-            end_time = date_range.split(" – ")[1]
-            end_time = self.strpTimeHelper(end_time)
+            self.metro = profile_.get('location', None)
 
-        begin_time = date_range.split(" – ")[0]
-        begin_time = self.strpTimeHelper(begin_time)
+            # Use regex for postal code and zip code
+            self.parse_location(profile_.get('geoRegionSearchUrl', False))
 
-        # Calculate years from datetime delta
+            # Languages may be 0 or more
+            languages = profile_.get('languages', False)
+            if languages:
+                all_lang = []
+                for l in languages:
+                    all_lang.append(l.get('languageName', ''))
+                self.language = ', '.join(all_lang)
 
-        delta = end_time - begin_time
-        days = delta.days
-        years = round(days / 365, 1)
-        return years
+            self.industry = profile_.get('industry', None)
 
-    def jobHistory(self):
-        # Number of jobs from length of element
-        job_elements = self.doc.select("#profile-experience li.position")
+            # Skills may be 0 or more
+            skills = profile_.get('skills', False)
+            if skills:
+                self.skills = ', '.join(skills)
 
-        # Iterate through past_jobs, fetching company, position title, years at role
+            self.summary = profile_.get('summary', None)
 
-        work_history = {}
+            self.parse_educations(profile_.get('educations', False))
 
-        for index, pj in enumerate(job_elements):
-            pj_company = self.extractText(pj.select("h5 a"))
-            pj_company_url = self.extractText(pj.select("h5 a"), get_href=True)
-            pj_position_title = self.extractText(pj.select("h4 a"))
-            pj_date_range = self.extractText(pj.select(".date-range"), extract_date=True)
-            pj_description = self.extractText(pj.select(".description.searchable"))
+            self.public_url = profile_.get('publicLink', None)
 
-            my_keys = [('Position_{}', pj_position_title), ('Company_{}', pj_company), ('URL_{}', pj_company_url),
-                       ('Title_{}', pj_position_title), ('Dates_{}', pj_date_range), ('Description_{}', pj_description)]
+            recruiter_params = profile_.get('findAuthInputModel', False)
+            if recruiter_params:
+                self.recruiter_url = recruiter_params.get('asUrlParam', None)
 
-            these_keys = [(m[0].format(index), m[1]) for m in my_keys]
+    def parse_educations(self, educations):
+        if educations is False:
+            return
 
-            for kv in these_keys:
-                work_history[kv[0]] = kv[1]
+        # May be 1 or more
+        # Choose most recent
 
-        return work_history
+        if len(educations) > 1:
+            # If end date not in all, return those without
+            if all('endDateYear' in edu for edu in educations) is False:
+                current_edu = list(filter(lambda x: 'endDateYear' not in x, educations))
+                educations = [current_edu[0]] # Potentially more than 1 match, but choose 1
+                # Keep in list form to be compatible with next if statement
 
-    def sqlProfile(self):
-        sql_name = self.name
-        sql_metro = self.metro
-        sql_zipcode = self.zip_code
-        sql_language = self.language
-        sql_industry = self.industry
-        sql_skills = self.skills
-        sql_summary = self.summary
-        sql_work_history = pickle.dumps(self.work_history)
-        sql_education = pickle.dumps(self.education)
-        sql_public_url = self.public_url
-        sql_recruiter_url = self.recruiter_url.split("?")[0]
+        if len(educations) == 1:
+            edu = educations[0]
+            self.education_school = edu.get('schoolName', None)
+            education_start = edu.get('startDateYear', None)
 
-        saved_profile = {'member_id': self.member_id,
-                         'name': sql_name,
-                         'metro': sql_metro,
-                         'zip_code': sql_zipcode,
-                         'language': sql_language,
-                         'industry': sql_industry,
-                         'skills': sql_skills,
-                         'summary': sql_summary,
-                         'company_0': self.work_history['Company_0'],
-                         'company_url_0': self.work_history['URL_0'],
-                         'title_0': self.work_history['Title_0'],
-                         'dates_0': self.work_history['Dates_0'],
-                         'description_0': self.work_history['Description_0'],
-                         'company_1': self.work_history['Company_1'],
-                         'company_url_1': self.work_history['URL_1'],
-                         'title_1': self.work_history['Title_1'],
-                         'dates_1': self.work_history['Dates_1'],
-                         'description_1': self.work_history['Description_1'],
-                         'company_2': self.work_history['Company_2'],
-                         'company_url_2': self.work_history['URL_2'],
-                         'title_2': self.work_history['Title_2'],
-                         'dates_2': self.work_history['Dates_2'],
-                         'description_2': self.work_history['Description_2'],
-                         'work_history': sql_work_history,
-                         'education': sql_education,
-                         'public_url': sql_public_url,
-                         'recruiter_url': sql_recruiter_url
-                         }
+            if education_start:
+                self.education_start = date(year=education_start, month=1, day=1)
 
-        self.sqlData = saved_profile
+            education_end = edu.get('endDateYear', None)
+
+            if education_end:
+                self.education_end = date(year=education_end, month=1, day=1)
+
+            self.education_degree = edu.get('degree', None)
+            self.education_study_field = edu.get('fieldOfStudy', None)
+
+    def parse_location(self, geo_url):
+        if geo_url is False:
+            return
+        postal_re = re.compile("postalCode=[0-9]{5}")
+        found_postal = postal_re.findall(geo_url)
+        if found_postal:
+            post_code = found_postal[0].split("=")[1]
+            self.postal_code = post_code
+
+        country_re = re.compile("countryCode=[A-z]+")
+        found_country = country_re.findall(geo_url)
+        if found_country:
+            country_code = found_country[0].split("=")[1]
+            self.country_code = country_code
