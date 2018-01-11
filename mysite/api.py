@@ -11,6 +11,7 @@ from random import randrange
 from string import ascii_letters
 from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer, BadSignature, SignatureExpired)
+from functools import wraps
 import base64
 
 app = Flask(__name__)
@@ -106,6 +107,17 @@ class LinkedInRecord(db.Model):
         self.public_url = LinkedInProfile.public_url
         self.recruiter_url = LinkedInProfile.recruiter_url
 
+def requires_key(*key):
+    def decorator(func):
+        @wraps(func)
+        def wrapped(*args, **kwargs):
+            api_key = request.args.get('api_key')
+            if User.verify_auth_token(api_key) is False:
+                abort(400)
+            return func(*args, **kwargs)
+        return wrapped
+    return decorator
+
 
 class User(UserMixin, db.Model):
 
@@ -115,13 +127,15 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(128))
     password_hash = db.Column(db.String(128))
     api_key = db.Column(db.Text)
-    current_session_user = db.Column(db.Text)
-    last_session_user = db.Column(db.Text)
+    current_session_user = db.Column(db.Integer, default=0)
+    last_session_user = db.Column(db.Integer)
 
     # Generating a random key to return to Extension after login success
     def generate_auth_token(self, expiration=86400):
         s = Serializer(app.config['SECRET_KEY'], expires_in=expiration)
-        return s.dumps({'id': self.id})
+        session_number = self.new_user_session()
+        print("Token session number issued is : {}".format(session_number))
+        return s.dumps({'id': self.id, 'session': session_number})
 
     @staticmethod
     def verify_auth_token(token):
@@ -133,17 +147,23 @@ class User(UserMixin, db.Model):
         except BadSignature:
             return None  # invalid token
         user = User.query.get(data['id'])
-        return user
-
-    def fetch_user_session(self):
-        current_session = self.current_session_user
-        return current_session
+        if user:
+            token_session = data['session']
+            if token_session == user.current_session_user:
+                return user
+            else:
+                print("Session does not match, generate new token")
+                return None
+        else:
+            return None
 
     def new_user_session(self):
-        current_session = self.fetch_session_number()
+        current_session = self.current_session_user
         new_session = current_session + 1
         self.current_session_user = new_session
         self.last_session_user = current_session
+        db.session.commit()
+        return new_session
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
@@ -220,7 +240,7 @@ def login():
     return redirect(url_for('index'))
 
 
-@app.route('/api/v1/token', methods=['GET', 'POST'])
+@app.route('/api/v1/token', methods=['POST'])
 def get_auth_token():
 
     # Requires authorization
@@ -233,6 +253,10 @@ def get_auth_token():
     else:
         return abort(404)
 
+@app.route('/api/v1/test', methods=['GET'])
+@requires_key(request)
+def t():
+    print("success")
 
 
 @app.route('/search', methods=['GET', 'POST'])
