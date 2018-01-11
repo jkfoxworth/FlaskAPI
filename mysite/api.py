@@ -7,6 +7,8 @@ from flask_migrate import Migrate
 from flask_login import login_user, LoginManager, UserMixin, login_required, logout_user, current_user
 from werkzeug.security import check_password_hash
 from datetime import datetime, date
+from random import randrange
+from string import ascii_letters
 
 
 app = Flask(__name__)
@@ -109,6 +111,60 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(128))
     password_hash = db.Column(db.String(128))
+    api_key = db.Columm(db.String(16))
+    current_session = db.Column(db.Integer(5), default=10000)
+    last_session = db.Column(db.Integer(5), default=None)
+
+
+    # Generating a random key to return to Extension after login success
+    def make_random_key(self, key_length=16):
+        l = list(set(ascii_letters))
+        r_key = []
+        for i in range(key_length):
+            r_letter = l[randrange(0, len(l))]
+            r_key.append(r_letter)
+        r_key = ''.join(r_key)
+        self.api_key = r_key
+        return r_key
+
+    def fetch_user_session(self):
+        current_session = self.current_session
+        return current_session
+
+    def new_user_session(self):
+        current_session = self.fetch_session_number()
+        new_session = current_session + 1
+        self.current_session = new_session
+        self.last_session = current_session
+
+    def api_auth(self, request):
+        # first, try to login using the api_key url arg
+        # api_key will be present when user is logged in
+        api_key = request.headers.get('api_key')
+        if api_key:
+            user = User.query.filter_by(api_key=api_key).first()
+            if user:
+                return True
+
+        # next, try to login using Basic Auth
+        # User passes username and password will receive api_key
+        request_user = request.headers.get('user', False)
+        request_password = request.headers.get('pass', False)
+
+        if all([request_user, request_password]):
+            user = User.query.filter_by(username=request_user).first()
+            user_hash = user.password_hash
+            if check_password_hash(user_hash, request_password) is True:
+                # generate and save new api key
+                user.make_random_key()
+                return user.api_key
+            else:
+                return False
+
+        # finally, return None if both methods did not login the user
+        return False
+
+
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
@@ -116,7 +172,8 @@ class User(UserMixin, db.Model):
     def get_id(self):
         return self.username
 
-
+# TODO Add table mapping User to associated sessions
+# TODO Add table mapping sessions to records
 
 
 @login_manager.user_loader
@@ -142,6 +199,10 @@ def login():
 
     login_user(user)
     return redirect(url_for('index'))
+
+@app.route('/api/login/', methods=['GET', 'POST'])
+def api_login():
+    return
 
 @app.route('/search', methods=['GET', 'POST'])
 @login_required
