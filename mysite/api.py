@@ -9,10 +9,12 @@ from werkzeug.security import check_password_hash
 from datetime import datetime, date
 from random import randrange
 from string import ascii_letters
-
+from itsdangerous import (TimedJSONWebSignatureSerializer
+                          as Serializer, BadSignature, SignatureExpired)
+import base64
 
 app = Flask(__name__)
-app.config['DEBUG'] = False
+app.config['DEBUG'] = True
 for k, v in AppConfiguration.db_values.items():
     app.config[k] = v
 
@@ -27,6 +29,7 @@ app.secret_key = AppConfiguration.secret_key
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = AppConfiguration.login_view
+
 
 class LinkedInRecord(db.Model):
     __tablename__ = 'Profiles'
@@ -93,7 +96,7 @@ class LinkedInRecord(db.Model):
         self.company_url_2 = LinkedInProfile.companyUrl_2
         self.title_2 = LinkedInProfile.title_2
         self.start_date_2 = LinkedInProfile.start_date_2
-        self.end_date_2= LinkedInProfile.end_date_2
+        self.end_date_2 = LinkedInProfile.end_date_2
         self.summary_2 = LinkedInProfile.summary_2
         self.education_school = LinkedInProfile.education_school
         self.education_start = LinkedInProfile.education_start
@@ -111,60 +114,36 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(128))
     password_hash = db.Column(db.String(128))
-    api_key = db.Columm(db.String(16))
-    current_session = db.Column(db.Integer(5), default=10000)
-    last_session = db.Column(db.Integer(5), default=None)
-
+    api_key = db.Column(db.Text)
+    current_session_user = db.Column(db.Text)
+    last_session_user = db.Column(db.Text)
 
     # Generating a random key to return to Extension after login success
-    def make_random_key(self, key_length=16):
-        l = list(set(ascii_letters))
-        r_key = []
-        for i in range(key_length):
-            r_letter = l[randrange(0, len(l))]
-            r_key.append(r_letter)
-        r_key = ''.join(r_key)
-        self.api_key = r_key
-        return r_key
+    def generate_auth_token(self, expiration=86400):
+        s = Serializer(app.config['SECRET_KEY'], expires_in=expiration)
+        return s.dumps({'id': self.id})
+
+    @staticmethod
+    def verify_auth_token(token):
+        s = Serializer(app.config['SECRET_KEY'])
+        try:
+            data = s.loads(token)
+        except SignatureExpired:
+            return None  # valid token, but expired
+        except BadSignature:
+            return None  # invalid token
+        user = User.query.get(data['id'])
+        return user
 
     def fetch_user_session(self):
-        current_session = self.current_session
+        current_session = self.current_session_user
         return current_session
 
     def new_user_session(self):
         current_session = self.fetch_session_number()
         new_session = current_session + 1
-        self.current_session = new_session
-        self.last_session = current_session
-
-    def api_auth(self, request):
-        # first, try to login using the api_key url arg
-        # api_key will be present when user is logged in
-        api_key = request.headers.get('api_key')
-        if api_key:
-            user = User.query.filter_by(api_key=api_key).first()
-            if user:
-                return True
-
-        # next, try to login using Basic Auth
-        # User passes username and password will receive api_key
-        request_user = request.headers.get('user', False)
-        request_password = request.headers.get('pass', False)
-
-        if all([request_user, request_password]):
-            user = User.query.filter_by(username=request_user).first()
-            user_hash = user.password_hash
-            if check_password_hash(user_hash, request_password) is True:
-                # generate and save new api key
-                user.make_random_key()
-                return user.api_key
-            else:
-                return False
-
-        # finally, return None if both methods did not login the user
-        return False
-
-
+        self.current_session_user = new_session
+        self.last_session_user = current_session
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
@@ -181,9 +160,49 @@ def load_user(user_id):
     return User.query.filter_by(username=user_id).first()
 
 
+@login_manager.request_loader
+def load_user_from_request(request):
+
+    # first, try to login using the api_key url arg
+    api_key = request.args.get('api_key')
+    if api_key:
+        user = User.verify_auth_token(api_key)
+        if user:
+            return user
+
+    # next, try to login using Basic Auth
+    api_key = request.headers.get('Authorization')
+    print("Auth header {}".format(api_key))
+
+    if api_key:
+        if isinstance(api_key, bytes):
+            print("Key is bytes")
+            api_key = api_key.replace(b'Basic ', b'', 1)
+        elif isinstance(api_key, str):
+            print("Key is string")
+            api_key = api_key.replace('Basic ', '', 1)
+        try:
+            api_key = base64.b64decode(api_key).decode()
+            print("KEY Decode to {}".format(api_key))
+            api_username = api_key.split(":")[0]
+            api_password = api_key.split(":")[1]
+            print("Username is {}".format(api_username))
+            print("Password is {}".format(api_password))
+        except TypeError:
+            print("Type error")
+            pass
+        user = User.query.filter_by(username=api_username).first()
+        if user.check_password(api_password):
+            return user
+
+    # finally, return None if both methods did not login the user
+    return None
+
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     return render_template('welcome.html')
+
 
 @app.route('/login/', methods=['GET', 'POST'])
 def login():
@@ -200,9 +219,21 @@ def login():
     login_user(user)
     return redirect(url_for('index'))
 
-@app.route('/api/login/', methods=['GET', 'POST'])
-def api_login():
-    return
+
+@app.route('/api/v1/token', methods=['GET', 'POST'])
+def get_auth_token():
+
+    # Requires authorization
+
+    user = load_user_from_request(request)
+    print(user)
+    if user:
+        token = user.generate_auth_token()
+        return jsonify({'token': token.decode('ascii')})
+    else:
+        return abort(404)
+
+
 
 @app.route('/search', methods=['GET', 'POST'])
 @login_required
