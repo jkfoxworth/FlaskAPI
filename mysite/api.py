@@ -107,16 +107,21 @@ class LinkedInRecord(db.Model):
         self.public_url = LinkedInProfile.public_url
         self.recruiter_url = LinkedInProfile.recruiter_url
 
-def requires_key(*key):
-    def decorator(func):
-        @wraps(func)
-        def wrapped(*args, **kwargs):
-            api_key = request.args.get('api_key')
-            if User.verify_auth_token(api_key) is False:
-                abort(400)
+def requires_key(func):
+    @wraps(func)
+    def wrapped(*args, **kwargs):
+        api_key = request.args.get('api_key', False)
+        if api_key is False:
+            abort(400)
+        if User.verify_auth_token(api_key) is False:
+            abort(400)
+        elif User.verify_auth_token(api_key) is None:
+            abort(400)
+        else:
             return func(*args, **kwargs)
-        return wrapped
-    return decorator
+        return func(*args, **kwargs)
+    return wrapped
+
 
 
 class User(UserMixin, db.Model):
@@ -136,6 +141,8 @@ class User(UserMixin, db.Model):
         session_number = self.new_user_session()
         print("Token session number issued is : {}".format(session_number))
         return s.dumps({'id': self.id, 'session': session_number})
+
+
 
     @staticmethod
     def verify_auth_token(token):
@@ -254,9 +261,9 @@ def get_auth_token():
         return abort(404)
 
 @app.route('/api/v1/test', methods=['GET'])
-@requires_key(request)
+@requires_key
 def t():
-    print("success")
+    return jsonify({'message': 'success'})
 
 
 @app.route('/search', methods=['GET', 'POST'])
