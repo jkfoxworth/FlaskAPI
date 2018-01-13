@@ -219,8 +219,11 @@ def load_user_from_request(request):
             print("Type error")
             pass
         user = User.query.filter_by(username=api_username).first()
-        if user.check_password(api_password):
-            return user
+        if user:
+            if user.check_password(api_password):
+                return user
+        else:
+            return None
 
     # finally, return None if both methods did not login the user
     return None
