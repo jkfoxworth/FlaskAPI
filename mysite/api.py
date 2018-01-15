@@ -110,7 +110,7 @@ class LinkedInRecord(db.Model):
 def requires_key(func):
     @wraps(func)
     def wrapped(*args, **kwargs):
-        api_key = request.args.get('api_key', False)
+        api_key = request.headers.get('Api-Key', False)
         if api_key is False:
             abort(400)
         if User.verify_auth_token(api_key) is False:
@@ -150,8 +150,10 @@ class User(UserMixin, db.Model):
         try:
             data = s.loads(token)
         except SignatureExpired:
+            print("Expired Token")
             return None  # valid token, but expired
         except BadSignature:
+            print("Bad Signature")
             return None  # invalid token
         user = User.query.get(data['id'])
         if user:
@@ -191,7 +193,7 @@ def load_user(user_id):
 def load_user_from_request(request):
 
     # first, try to login using the api_key url arg
-    api_key = request.headers.get('api_key')
+    api_key = request.headers.get('Api-Key')
     if api_key:
         user = User.verify_auth_token(api_key)
         if user:
@@ -326,8 +328,11 @@ def list():
     return render_template("list.html", rows=LinkedInRecord.query.all())
 
 @app.route('/api/v1/profiles', methods=['POST'])
+@requires_key
 def profile():
+
     if not request.json:
+        print("Request is not JSON")
         abort(400)
 
     data = request.json
