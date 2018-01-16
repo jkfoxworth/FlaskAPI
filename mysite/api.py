@@ -429,14 +429,9 @@ def handle_update(profile_record, user_id):
 
         old_record.__dict__[k] = v
     old_record.updated = date.today()
-    current_from_users = old_record.__dict__['from_users']
-    if current_from_users:
-        new_from_users = current_from_users.split('_').append(str(user_id))
-        new_from_users = '_'.join(new_from_users)
-        new_from_users = new_from_users + "_"
-        old_record.from_users = new_from_users
-    else:
-        old_record.from_users = str(user_id)
+    current_from_users = old_record.from_users
+    old_record.from_users = current_from_users + "_" + str(user_id) + "_"
+
     return old_record
 
 
