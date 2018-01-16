@@ -1,7 +1,5 @@
 from datetime import date
 import re
-import json
-from operator import itemgetter
 
 class LinkedInProfile(object):
     """

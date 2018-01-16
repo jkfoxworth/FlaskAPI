@@ -15,6 +15,7 @@ from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer, BadSignature, SignatureExpired)
 from functools import wraps
 import base64
+import json
 
 app = Flask(__name__)
 app.config['DEBUG'] = True
@@ -319,7 +320,7 @@ def search():
             result_tuple = (searched_result.name, searched_result.title_0, searched_result.company_0, searched_result.metro, searched_result.summary_0)
             results.append(result_tuple)
         if results:
-            print("Prinitng results")
+
             return render_template('results.html', success='True', headers=headers, results=results)
         else:
             return render_template('search.html', success='False')
@@ -360,12 +361,50 @@ def profile():
     if matched_records:
         print("Handled update")
         profile_record = handle_update(profile_record, user_id)
+    else:
+        profile_record.from_users = str(user_id) + "_"
 
 
     db.session.add(profile_record)
     db.session.commit()
 
     return jsonify({'status': 'success'}), 201
+
+
+@app.route('/api/v1/fetch', methods=['GET'])
+@requires_key
+def fetch_profiles():
+    if not request.json:
+        print("Request is not JSON")
+        abort(400)
+
+    profiles = {}
+    requested_profiles = request.json.get('profiles')
+    for index, rp in enumerate(requested_profiles):
+        result = LinkedInRecord.query.filter_by(recruiter_url=rp).first()
+        formatted_result = format_results(result)
+        profiles[index] = formatted_result
+
+    json_profiles = json.dumps(profiles)
+    return jsonify({'profiles': json_profiles})
+
+
+def format_results(record):
+    holder = {}
+    for k, v in record.__dict__.items():
+        if k[0] == '_' or k == 'updated' or k == 'from_users':
+            continue
+        if isinstance(v, date):
+            str_v = v.strftime('%d-%m-%y')
+            holder[k] = str_v
+        else:
+            holder[k] = v
+    return holder
+
+
+
+
+
 
 
 def handle_update(profile_record, user_id):
@@ -391,9 +430,9 @@ def handle_update(profile_record, user_id):
     current_from_users = old_record.__dict__['from_users']
     if current_from_users:
         new_from_users = current_from_users.split('_').append(str(user_id))
-        old_record.__dict__['from_users'] = '_'.join(new_from_users)
+        old_record.from_users = '_'.join(new_from_users) + "_"
     else:
-        old_record.__dict__['from_users'] = str(user_id)
+        old_record.from_users = str(user_id)
     return old_record
 
 
