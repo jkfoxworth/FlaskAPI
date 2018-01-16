@@ -4,6 +4,7 @@ from app_config import AppConfiguration
 from flask import Flask, render_template, session, redirect, url_for, request, abort, jsonify
 from profile_parser import LinkedInProfile
 from flask_sqlalchemy import SQLAlchemy
+import sqlalchemy
 from flask_migrate import Migrate
 from flask_login import login_user, LoginManager, UserMixin, login_required, logout_user, current_user
 from werkzeug.security import check_password_hash
@@ -32,39 +33,42 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = AppConfiguration.login_view
 
-
-# Helper table for many-to-many User / Profile Relationships
-
 class LinkedInRecord(db.Model):
     __tablename__ = 'Profiles'
     member_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String)
     created = db.Column(db.Date, default=date.today())
-    updated = db.Column(db.Date)
+    updated = db.Column(db.Date, default=None)
     metro = db.Column(db.Text)
     postal_code = db.Column(db.Text)
+    country_code = db.Column(db.Text)
     language = db.Column(db.Text)
     industry = db.Column(db.Text)
     skills = db.Column(db.Text)
     summary = db.Column(db.Text)
+
     company_0 = db.Column(db.Text)
+    company_1 = db.Column(db.Text)
+    company_2 = db.Column(db.Text)
+
     company_url_0 = db.Column(db.Text)
+    company_url_1 = db.Column(db.Text)
+    company_url_2 = db.Column(db.Text)
+
     title_0 = db.Column(db.Text)
+    title_1 = db.Column(db.Text)
+    title_2 = db.Column(db.Text)
+
     start_date_0 = db.Column(db.Date)
     end_date_0 = db.Column(db.Date)
-    description_0 = db.Column(db.Text)
-    company_1 = db.Column(db.Text)
-    company_url_1 = db.Column(db.Text)
-    title_1 = db.Column(db.Text)
     start_date_1 = db.Column(db.Date)
     end_date_1 = db.Column(db.Date)
-    description_1 = db.Column(db.Text)
-    company_2 = db.Column(db.Text)
-    company_url_2 = db.Column(db.Text)
-    title_2 = db.Column(db.Text)
     start_date_2 = db.Column(db.Date)
     end_date_2 = db.Column(db.Date)
-    description_2 = db.Column(db.Text)
+
+    summary_0 = db.Column(db.Text)
+    summary_1 = db.Column(db.Text)
+    summary_2 = db.Column(db.Text)
     education_school = db.Column(db.Text)
     education_start = db.Column(db.Date)
     education_end = db.Column(db.Date)
@@ -72,7 +76,8 @@ class LinkedInRecord(db.Model):
     education_study_field = db.Column(db.Text)
     public_url = db.Column(db.Text, unique=True)
     recruiter_url = db.Column(db.Text, unique=True)
-    user_associations = db.Column(db.Text, default=None)
+
+    from_users = db.Column(db.Text, default=None)
 
     def __init__(self, LinkedInProfile):
 
@@ -85,24 +90,30 @@ class LinkedInRecord(db.Model):
         self.industry = LinkedInProfile.industry
         self.skills = LinkedInProfile.skills
         self.summary = LinkedInProfile.summary
-        self.company_name_0 = LinkedInProfile.companyName_0
+
+        self.company_0 = LinkedInProfile.companyName_0
+        self.company_1 = LinkedInProfile.companyName_1
+        self.company_2 = LinkedInProfile.companyName_2
+
         self.company_url_0 = LinkedInProfile.companyUrl_0
+        self.company_url_1 = LinkedInProfile.companyUrl_1
+        self.company_url_2 = LinkedInProfile.companyUrl_2
+
         self.title_0 = LinkedInProfile.title_0
+        self.title_1 = LinkedInProfile.title_1
+        self.title_2 = LinkedInProfile.title_2
+
         self.start_date_0 = LinkedInProfile.start_date_0
         self.end_date_0 = LinkedInProfile.end_date_0
-        self.summary_0 = LinkedInProfile.summary_0
-        self.company_name_1 = LinkedInProfile.companyName_1
-        self.company_url_1 = LinkedInProfile.companyUrl_1
-        self.title_1 = LinkedInProfile.title_1
         self.start_date_1 = LinkedInProfile.start_date_1
         self.end_date_1 = LinkedInProfile.end_date_1
-        self.summary_1 = LinkedInProfile.summary_1
-        self.company_name_2 = LinkedInProfile.companyName_2
-        self.company_url_2 = LinkedInProfile.companyUrl_2
-        self.title_2 = LinkedInProfile.title_2
         self.start_date_2 = LinkedInProfile.start_date_2
         self.end_date_2 = LinkedInProfile.end_date_2
+
+        self.summary_0 = LinkedInProfile.summary_0
+        self.summary_1 = LinkedInProfile.summary_1
         self.summary_2 = LinkedInProfile.summary_2
+
         self.education_school = LinkedInProfile.education_school
         self.education_start = LinkedInProfile.education_start
         self.education_end = LinkedInProfile.education_end
@@ -110,7 +121,7 @@ class LinkedInRecord(db.Model):
         self.education_study_field = LinkedInProfile.education_study_field
         self.public_url = LinkedInProfile.public_url
         self.recruiter_url = LinkedInProfile.recruiter_url
-        self.user_associations = LinkedInProfile.user_associations
+
 
 
 def requires_key(func):
@@ -279,12 +290,11 @@ def search():
 
     elif request.method == 'POST':
 
-
         search_query = {'title_0': '%{}%'.format(request.form.get('job_title', 'empty')),
                         'company_0': '%{}%'.format(request.form.get('company', 'empty')),
-                        'metro': '%{}%'.format(request.form.get('metro', 'empty'))}
+                        'metro': '%{}%'.format(request.form.get('metro', 'empty')),
+                        'summary_0': '%{}%'.format(request.form.get('summary_0', 'empty'))}
                         # 'keywords': '%{}%'.format(request.form.get('keywords', 'empty'))}
-
 
         search_query = {k: v for (k, v) in search_query.items() if v != '%empty%' and v != '%%'}
         print(search_query)
@@ -303,10 +313,10 @@ def search():
 
         # TODO Better way to define headers, return values
 
-        headers = ['Name', 'Job Title', 'Company', 'Location', 'Skills']
+        headers = ['Name', 'Job Title', 'Company', 'Location', 'Job Description']
         results = []
         for searched_result in search_results:
-            result_tuple = (searched_result.name, searched_result.title_0, searched_result.company_0, searched_result.metro, searched_result.skills)
+            result_tuple = (searched_result.name, searched_result.title_0, searched_result.company_0, searched_result.metro, searched_result.summary_0)
             results.append(result_tuple)
         if results:
             print("Prinitng results")
@@ -326,26 +336,6 @@ def logout():
 def list():
     return render_template("list.html", rows=LinkedInRecord.query.all())
 
-def update_helper(parsed_data, user_id):
-    matching_record = LinkedInRecord.query.filter_by(member_id=parsed_data.member_id)
-
-    if matching_record is not None:
-        matching_record.update([{k, v} for k, v in parsed_data.__dict__.items() if k is not 'created' and k
-                                is not 'user_associations'])
-
-        matching_record.update(dict(updated=date.today()))
-        current_assoc = matching_record.user_assoc.split(', ')
-        if user_id not in current_assoc:
-            new_assoc = current_assoc.append(user_id)
-        else:
-            new_assoc = current_assoc
-        new_assoc = ', '.join(new_assoc)
-        matching_record.update(dict(user_associations=new_assoc))
-        return matching_record
-    else:
-        return False
-
-
 @app.route('/api/v1/profiles', methods=['POST'])
 @requires_key
 def profile():
@@ -355,25 +345,59 @@ def profile():
         abort(400)
 
     data = request.json
-    user = load_user_from_request(request)
-    if user:
-        user_id = user.id
-    else:
-        abort(400)
-
     parsed_data = LinkedInProfile(data)
+    profile_record = LinkedInRecord(parsed_data)
+
+    # Get user id to associate to the record
+    user_id = load_user_from_request(request).id
+    print("New record from {}".format(user_id))
 
     # Check if record already exists
 
-    record_updated = update_helper(parsed_data, user_id)
-    if record_updated:
-        profile_record = record_updated
-    else:
-        profile_record = LinkedInRecord(parsed_data)
+    matched_records = LinkedInRecord.query.filter_by(member_id=profile_record.member_id).first()
+    print(matched_records)
+
+    if matched_records:
+        print("Handled update")
+        profile_record = handle_update(profile_record, user_id)
+
 
     db.session.add(profile_record)
     db.session.commit()
+
     return jsonify({'status': 'success'}), 201
+
+
+def handle_update(profile_record, user_id):
+
+    # Fetch the record that is a duplicate
+
+    old_record = LinkedInRecord.query.filter_by(member_id=profile_record.member_id).first()
+
+    record_keys = profile_record.__dict__.keys()
+    for key in record_keys:
+        if key[0] == '_' or key == 'from_users' or key == 'updated':  # These will never be equal, internal key
+            continue
+        try:
+            old_value = getattr(old_record, key)
+            new_value = getattr(profile_record, key)
+        except KeyError:
+            continue
+        if old_value != new_value:
+            setattr(old_record, new_value)
+
+        old_record.__dict__[k] = v
+    old_record.updated = date.today()
+    current_from_users = old_record.__dict__['from_users']
+    if current_from_users:
+        new_from_users = current_from_users.split('_').append(str(user_id))
+        old_record.__dict__['from_users'] = '_'.join(new_from_users)
+    else:
+        old_record.__dict__['from_users'] = str(user_id)
+    return old_record
+
+
+
 
 if __name__ == '__main__':
     app.run()
