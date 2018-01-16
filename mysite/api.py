@@ -364,13 +364,17 @@ def profile():
     else:
         profile_record.from_users = str(user_id) + "_"
 
+    json_response = format_results(profile_record)
 
     db.session.add(profile_record)
     db.session.commit()
 
     # Form to JSON and reply with it
 
-    return jsonify({'parsed': format_results(profile_record)}), 201
+
+    print(json_response)
+
+    return jsonify({'parsed': json_response}), 201
 
 
 @app.route('/api/v1/fetch', methods=['GET'])
@@ -402,12 +406,6 @@ def format_results(record):
         else:
             holder[k] = v
     return holder
-
-
-
-
-
-
 
 def handle_update(profile_record, user_id):
 
