@@ -47,6 +47,7 @@ class LinkedInProfile(object):
         self.education_study_field = None
         self.public_url = None
         self.recruiter_url = None
+        self.user_associations = None
         self.parse_positions()
         self.parse_profile()
 

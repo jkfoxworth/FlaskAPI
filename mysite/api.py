@@ -1,8 +1,9 @@
+import sys
+sys.path.append('mysite')
 from app_config import AppConfiguration
 from flask import Flask, render_template, session, redirect, url_for, request, abort, jsonify
 from profile_parser import LinkedInProfile
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import or_, text
 from flask_migrate import Migrate
 from flask_login import login_user, LoginManager, UserMixin, login_required, logout_user, current_user
 from werkzeug.security import check_password_hash
@@ -31,6 +32,8 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = AppConfiguration.login_view
 
+
+# Helper table for many-to-many User / Profile Relationships
 
 class LinkedInRecord(db.Model):
     __tablename__ = 'Profiles'
@@ -69,6 +72,7 @@ class LinkedInRecord(db.Model):
     education_study_field = db.Column(db.Text)
     public_url = db.Column(db.Text, unique=True)
     recruiter_url = db.Column(db.Text, unique=True)
+    user_associations = db.Column(db.Text, default=None)
 
     def __init__(self, LinkedInProfile):
 
@@ -106,6 +110,8 @@ class LinkedInRecord(db.Model):
         self.education_study_field = LinkedInProfile.education_study_field
         self.public_url = LinkedInProfile.public_url
         self.recruiter_url = LinkedInProfile.recruiter_url
+        self.user_associations = LinkedInProfile.user_associations
+
 
 def requires_key(func):
     @wraps(func)
@@ -116,12 +122,11 @@ def requires_key(func):
         if User.verify_auth_token(api_key) is False:
             abort(400)
         elif User.verify_auth_token(api_key) is None:
-            abort(400)
+            abort(401)
         else:
             return func(*args, **kwargs)
         return func(*args, **kwargs)
     return wrapped
-
 
 
 class User(UserMixin, db.Model):
@@ -134,7 +139,6 @@ class User(UserMixin, db.Model):
     api_key = db.Column(db.Text)
     current_session_user = db.Column(db.Integer, default=0)
     last_session_user = db.Column(db.Integer)
-
     # Generating a random key to return to Extension after login success
     def generate_auth_token(self, expiration=86400):
         s = Serializer(app.config['SECRET_KEY'], expires_in=expiration)
@@ -154,7 +158,7 @@ class User(UserMixin, db.Model):
             return None  # valid token, but expired
         except BadSignature:
             print("Bad Signature")
-            return None  # invalid token
+            return False  # invalid token
         user = User.query.get(data['id'])
         if user:
             token_session = data['session']
@@ -164,7 +168,7 @@ class User(UserMixin, db.Model):
                 print("Session does not match, generate new token")
                 return None
         else:
-            return None
+            return False
 
     def new_user_session(self):
         current_session = self.current_session_user
@@ -205,20 +209,14 @@ def load_user_from_request(request):
 
     if api_key:
         if isinstance(api_key, bytes):
-            print("Key is bytes")
             api_key = api_key.replace(b'Basic ', b'', 1)
         elif isinstance(api_key, str):
-            print("Key is string")
             api_key = api_key.replace('Basic ', '', 1)
         try:
             api_key = base64.b64decode(api_key).decode()
-            print("KEY Decode to {}".format(api_key))
             api_username = api_key.split(":")[0]
             api_password = api_key.split(":")[1]
-            print("Username is {}".format(api_username))
-            print("Password is {}".format(api_password))
         except TypeError:
-            print("Type error")
             pass
         user = User.query.filter_by(username=api_username).first()
         if user:
@@ -263,12 +261,13 @@ def get_auth_token():
         token = user.generate_auth_token()
         return jsonify({'token': token.decode('ascii')})
     else:
-        return abort(404)
+        return abort(401)
 
-@app.route('/api/v1/test', methods=['GET'])
+
+@app.route('/api/v1/test_token', methods=['GET'])
 @requires_key
 def t():
-    return jsonify({'message': 'success'})
+    return jsonify({'message': 'valid token'})
 
 
 @app.route('/search', methods=['GET', 'POST'])
@@ -327,6 +326,26 @@ def logout():
 def list():
     return render_template("list.html", rows=LinkedInRecord.query.all())
 
+def update_helper(parsed_data, user_id):
+    matching_record = LinkedInRecord.query.filter_by(member_id=parsed_data.member_id)
+
+    if matching_record is not None:
+        matching_record.update([{k, v} for k, v in parsed_data.__dict__.items() if k is not 'created' and k
+                                is not 'user_associations'])
+
+        matching_record.update(dict(updated=date.today()))
+        current_assoc = matching_record.user_assoc.split(', ')
+        if user_id not in current_assoc:
+            new_assoc = current_assoc.append(user_id)
+        else:
+            new_assoc = current_assoc
+        new_assoc = ', '.join(new_assoc)
+        matching_record.update(dict(user_associations=new_assoc))
+        return matching_record
+    else:
+        return False
+
+
 @app.route('/api/v1/profiles', methods=['POST'])
 @requires_key
 def profile():
@@ -336,13 +355,22 @@ def profile():
         abort(400)
 
     data = request.json
+    user = load_user_from_request(request)
+    if user:
+        user_id = user.id
+    else:
+        abort(400)
 
     parsed_data = LinkedInProfile(data)
 
-    profile_record = LinkedInRecord(parsed_data)
+    # Check if record already exists
 
-    # Is the profile already present?
-    #
+    record_updated = update_helper(parsed_data, user_id)
+    if record_updated:
+        profile_record = record_updated
+    else:
+        profile_record = LinkedInRecord(parsed_data)
+
     db.session.add(profile_record)
     db.session.commit()
     return jsonify({'status': 'success'}), 201
