@@ -368,7 +368,9 @@ def profile():
     db.session.add(profile_record)
     db.session.commit()
 
-    return jsonify({'status': 'success'}), 201
+    # Form to JSON and reply with it
+
+    return jsonify({'parsed': format_results(profile_record)}), 201
 
 
 @app.route('/api/v1/fetch', methods=['GET'])
@@ -430,7 +432,9 @@ def handle_update(profile_record, user_id):
     current_from_users = old_record.__dict__['from_users']
     if current_from_users:
         new_from_users = current_from_users.split('_').append(str(user_id))
-        old_record.from_users = '_'.join(new_from_users) + "_"
+        new_from_users = '_'.join(new_from_users)
+        new_from_users = new_from_users + "_"
+        old_record.from_users = new_from_users
     else:
         old_record.from_users = str(user_id)
     return old_record
