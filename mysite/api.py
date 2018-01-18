@@ -127,13 +127,12 @@ class UserCache(db.Model):
 
     __tablename__ = "UserCache"
     cache_id = db.Column(db.Text, primary_key=True)
-    user_id = db.Column(db.String(128))
-    cached = db.Column(db.Text)
+    user_id = db.Column(db.Integer, db.ForeignKey('Users.id'))
+    cached = db.Column(db.PickleType)
 
-    def __init__(self, user_id):
+    def __init__(self):
         self.cache_id = self.generate_string()
-        self.user_id = user_id
-        self.cached = None
+        self.cached = []
 
     def generate_string(self):
         l = ascii_letters
@@ -142,19 +141,10 @@ class UserCache(db.Model):
             holder.append(l[random.randrange(0, len(l))])
         return ''.join(holder)
 
-    def append_cache(self, member_urls):
+    def append_cache(self, member_id):
         current_cache = self.cached
-        if current_cache:
-            current_cache = current_cache.split('|||')
-        else:
-            current_cache = []
-        if isinstance(member_urls, str):
-            member_urls = member_urls.split('|||')
-            member_ids = []
-            for mu in member_urls:
-                member_ids.append(mu.split(',')[0])
-        new_cache = current_cache + member_ids
-        self.cached = '|||'.join(new_cache)
+        new_cache = current_cache + [member_id]
+        self.cached = new_cache
 
 def requires_key(func):
     @wraps(func)
@@ -182,12 +172,16 @@ class User(UserMixin, db.Model):
     api_key = db.Column(db.Text)
     current_session_user = db.Column(db.Integer, default=0)
     last_session_user = db.Column(db.Integer)
+    caches = db.relationship('UserCache', backref='user')
     # Generating a random key to return to Extension after login success
+
     def generate_auth_token(self, expiration=86400):
         s = Serializer(app.config['SECRET_KEY'], expires_in=expiration)
         session_number = self.new_user_session()
-        print("Token session number issued is : {}".format(session_number))
-        return s.dumps({'id': self.id, 'session': session_number})
+        cache_id = self.new_user_cache()
+
+        print("Cache is  {}".format(cache_id))
+        return s.dumps({'id': self.id, 'session': session_number, 'cache_id': cache_id})
 
 
 
@@ -220,6 +214,15 @@ class User(UserMixin, db.Model):
         self.last_session_user = current_session
         db.session.commit()
         return new_session
+
+    def new_user_cache(self):
+        new_cache = UserCache()
+        self.caches.append(new_cache)
+        new_cache_id = new_cache.cache_id
+        db.session.add(new_cache)
+        db.session.commit()
+        return new_cache_id
+
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
@@ -306,41 +309,6 @@ def get_auth_token():
     else:
         return abort(401)
 
-@app.route('/api/v1/cache', methods=['GET', 'POST'])
-@requires_key
-
-def cache():
-
-    user = load_user_from_request(request)
-    if user is False:
-        return abort(401)
-    elif user is None:
-        return abort(401)
-    if request.method == 'GET':
-        # generate a new cache
-        new_cache = UserCache(user_id=user.id)
-        generated_string = new_cache.cache_id
-        db.session.add(new_cache)
-        db.session.commit()
-        return jsonify({'cache_id': generated_string})
-    elif request.method == 'POST':
-        data = request.json
-        print(data)
-        request_cache_id = data['cache_id']
-        target_cache = UserCache.query.filter_by(cache_id=request_cache_id).first()
-        action = data.get('action')
-        if action == 'append':
-            request_members = data['data']
-            target_cache.append_cache(request_members)
-            db.session.add(target_cache)
-            db.session.commit()
-            return jsonify({'action': 'success'}), 201
-        elif action == 'fetch':
-            cache_data = target_cache.cached
-            return jsonify({'data': cache_data}), 200
-        else:
-            abort(400)
-
 @app.route('/api/v1/test_token', methods=['GET'])
 @requires_key
 def t():
@@ -407,7 +375,6 @@ def list():
 def profile():
 
     if not request.json:
-        print("Request is not JSON")
         abort(400)
 
     data = request.json
@@ -415,7 +382,8 @@ def profile():
     profile_record = LinkedInRecord(parsed_data)
 
     # Get user id to associate to the record
-    user_id = load_user_from_request(request).id
+    user_from_api = load_user_from_request(request)
+    user_id = user_from_api.id
     print("New record from {}".format(user_id))
 
     # Check if record already exists
@@ -429,32 +397,28 @@ def profile():
     else:
         profile_record.from_users = str(user_id) + "_"
 
-    parsed_record = profile_record.member_id
+    # Add the member id to the user's most recent cache
+
+    user_current_cache = user_from_api.caches[0]
+    user_current_cache.append_cache(parsed_data.member_id)
 
     db.session.add(profile_record)
     db.session.commit()
 
     # Form to JSON and reply with it
 
-    return jsonify({'parsed': parsed_record}), 201
+    return jsonify({'action': 'success'}), 201
 
 
 @app.route('/api/v1/fetch', methods=['GET'])
 @requires_key
 def fetch_profiles():
-    if not request.json:
-        print("Request is not JSON")
-        abort(400)
+    user_from_api = load_user_from_request(request)
+    user_current_cache = user_from_api.caches[0].cached
+    print(user_current_cache)
 
-    profiles = {}
-    requested_profiles = request.json.get('profiles')
-    for index, rp in enumerate(requested_profiles):
-        result = LinkedInRecord.query.filter_by(recruiter_url=rp).first()
-        formatted_result = format_results(result)
-        profiles[index] = formatted_result
-
-    json_profiles = json.dumps(profiles)
-    return jsonify({'profiles': json_profiles})
+    # TODO Serve a CSV
+    return jsonify({'profiles': user_current_cache})
 
 
 def format_results(record):
