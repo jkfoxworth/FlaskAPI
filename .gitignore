@@ -5,3 +5,5 @@
 /test_profile.html
 /.gitignore
 *.json
+/scripts/*.py
+

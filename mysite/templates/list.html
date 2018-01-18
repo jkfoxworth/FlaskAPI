@@ -17,14 +17,19 @@
 
  {% for row in rows %}
     <tr>
-
-        <td>{{row["name"]}}</td>
+        {% set displayname = row["name"].replace("<first>", "").replace("</first>", "").replace("<last>", "").replace("</last>", "")%}
+        {% if row["end_date_0"] == None %}
+            {% set workdate = row["start_date_0"] %}
+        {% else %}
+            {% set workdate = "{}-{}".format(row["start_date_0"], row["end_date_0"]) %}
+        {% endif %}
+        <td>{{displayname}}</td>
         <td>{{row["metro"]}}</td>
-        <td>{{row["zip_code"]}}</td>
+        <td>{{row["postal_code"]}}</td>
         <td>{{row["company_0"]}}</td>
         <td>{{row["title_0"]}}</td>
         <td>{{row["description_0"]}}</td>
-        <td>{{row["dates_0"]}}</td>
+        <td>{{workdate}}</td>
         <td><a href="{{row['public_url']}}">Public Profile</a></td>
         <td><a href="{{row['recruiter_url']}}">Recruiter Profile</a></td>
     </tr>

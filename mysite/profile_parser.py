@@ -1,7 +1,5 @@
 from datetime import date
 import re
-import json
-from operator import itemgetter
 
 class LinkedInProfile(object):
     """
@@ -22,24 +20,30 @@ class LinkedInProfile(object):
         self.industry = None
         self.skills = None
         self.summary = None
+
         self.companyName_0 = None
+        self.companyName_1 = None
+        self.companyName_2 = None
+
         self.companyUrl_0 = None
+        self.companyUrl_1 = None
+        self.companyUrl_2 = None
+
         self.title_0 = None
+        self.title_1 = None
+        self.title_2 = None
+
         self.start_date_0 = None
         self.end_date_0 = None
-        self.summary_0 = None
-        self.companyName_1 = None
-        self.companyUrl_1 = None
-        self.title_1 = None
         self.start_date_1 = None
         self.end_date_1 = None
-        self.summary_1 = None
-        self.companyName_2 = None
-        self.companyUrl_2 = None
-        self.title_2 = None
         self.start_date_2 = None
         self.end_date_2 = None
+
+        self.summary_0 = None
+        self.summary_1 = None
         self.summary_2 = None
+
         self.education_school = None
         self.education_start = None
         self.education_end = None
@@ -47,6 +51,7 @@ class LinkedInProfile(object):
         self.education_study_field = None
         self.public_url = None
         self.recruiter_url = None
+
         self.parse_positions()
         self.parse_profile()
 
@@ -163,7 +168,7 @@ class LinkedInProfile(object):
 
             recruiter_params = profile_.get('findAuthInputModel', False)
             if recruiter_params:
-                self.recruiter_url = recruiter_params.get('asUrlParam', None)
+                self.recruiter_url = 'https://www.linkedin.com/recruiter/profile/' + recruiter_params.get('asUrlParam', None)
 
     def parse_educations(self, educations):
         if educations is False:

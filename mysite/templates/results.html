@@ -14,9 +14,15 @@
     </thead>
     <tbody>
         {% for v in results %}
+
       <tr>
           {% for sub_v in v %}
-        <td> {{ sub_v }} </td>
+          {% if "<first>" in sub_v %}
+            {% set view_value = sub_v.replace("<first>", "").replace("</first>", "").replace("<last>", "").replace("</last>", "")%}
+          {% else %}
+            {% set view_value = sub_v %}
+          {% endif %}
+        <td> {{ view_value }} </td>
             {% endfor %}
       </tr>
         {% endfor %}
