@@ -9,7 +9,7 @@ from flask_migrate import Migrate
 from flask_login import login_user, LoginManager, UserMixin, login_required, logout_user, current_user
 from werkzeug.security import check_password_hash
 from datetime import datetime, date
-from random import randrange
+import random
 from string import ascii_letters
 from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer, BadSignature, SignatureExpired)
@@ -123,7 +123,38 @@ class LinkedInRecord(db.Model):
         self.public_url = LinkedInProfile.public_url
         self.recruiter_url = LinkedInProfile.recruiter_url
 
+class UserCache(db.Model):
 
+    __tablename__ = "UserCache"
+    cache_id = db.Column(db.Text, primary_key=True)
+    user_id = db.Column(db.String(128))
+    cached = db.Column(db.Text)
+
+    def __init__(self, user_id):
+        self.cache_id = self.generate_string()
+        self.user_id = user_id
+        self.cached = None
+
+    def generate_string(self):
+        l = ascii_letters
+        holder = []
+        for i in range(16):
+            holder.append(l[random.randrange(0, len(l))])
+        return ''.join(holder)
+
+    def append_cache(self, member_urls):
+        current_cache = self.cached
+        if current_cache:
+            current_cache = current_cache.split('|||')
+        else:
+            current_cache = []
+        if isinstance(member_urls, str):
+            member_urls = member_urls.split('|||')
+            member_ids = []
+            for mu in member_urls:
+                member_ids.append(mu.split(',')[0])
+        new_cache = current_cache + member_ids
+        self.cached = '|||'.join(new_cache)
 
 def requires_key(func):
     @wraps(func)
@@ -275,6 +306,40 @@ def get_auth_token():
     else:
         return abort(401)
 
+@app.route('/api/v1/cache', methods=['GET', 'POST'])
+@requires_key
+
+def cache():
+
+    user = load_user_from_request(request)
+    if user is False:
+        return abort(401)
+    elif user is None:
+        return abort(401)
+    if request.method == 'GET':
+        # generate a new cache
+        new_cache = UserCache(user_id=user.id)
+        generated_string = new_cache.cache_id
+        db.session.add(new_cache)
+        db.session.commit()
+        return jsonify({'cache_id': generated_string})
+    elif request.method == 'POST':
+        data = request.json
+        print(data)
+        request_cache_id = data['cache_id']
+        target_cache = UserCache.query.filter_by(cache_id=request_cache_id).first()
+        action = data.get('action')
+        if action == 'append':
+            request_members = data['data']
+            target_cache.append_cache(request_members)
+            db.session.add(target_cache)
+            db.session.commit()
+            return jsonify({'action': 'success'}), 201
+        elif action == 'fetch':
+            cache_data = target_cache.cached
+            return jsonify({'data': cache_data}), 200
+        else:
+            abort(400)
 
 @app.route('/api/v1/test_token', methods=['GET'])
 @requires_key
@@ -364,17 +429,14 @@ def profile():
     else:
         profile_record.from_users = str(user_id) + "_"
 
-    json_response = format_results(profile_record)
+    parsed_record = profile_record.member_id
 
     db.session.add(profile_record)
     db.session.commit()
 
     # Form to JSON and reply with it
 
-
-    print(json_response)
-
-    return jsonify({'parsed': json_response}), 201
+    return jsonify({'parsed': parsed_record}), 201
 
 
 @app.route('/api/v1/fetch', methods=['GET'])
