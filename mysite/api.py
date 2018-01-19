@@ -80,7 +80,7 @@ class LinkedInRecord(db.Model):
     public_url = db.Column(db.Text, unique=True)
     recruiter_url = db.Column(db.Text, unique=True)
 
-    _raw = db.Column(db.PickleType)
+    _raw_json = db.Column(db.PickleType)
 
     def __init__(self, LinkedInProfile):
         """
@@ -413,7 +413,11 @@ def serve_file(cache_id):
     def row2dict(row):
         d = {}
         for column in row.__table__.columns:
-            if column.name[0] == '_':
+            if column.name == 'name':
+                v = str(getattr(row, column.name))
+                v = v.replace("<first>", "").replace("</first>", "").replace("<last>", "").replace("</last>", "")
+                d[column.name] = v
+            elif column.name == 'from_users' or column.name == 'update':
                 continue
             else:
                 d[column.name] = str(getattr(row, column.name))
