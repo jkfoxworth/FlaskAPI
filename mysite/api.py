@@ -1,10 +1,9 @@
 import sys
 sys.path.append('mysite')
 from app_config import AppConfiguration
-from flask import Flask, render_template, session, redirect, url_for, request, abort, jsonify
+from flask import Flask, render_template, redirect, url_for, request, abort, jsonify, Response
 from profile_parser import LinkedInProfile
 from flask_sqlalchemy import SQLAlchemy
-import sqlalchemy
 from flask_migrate import Migrate
 from flask_login import login_user, LoginManager, UserMixin, login_required, logout_user, current_user
 from werkzeug.security import check_password_hash
@@ -15,61 +14,64 @@ from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer, BadSignature, SignatureExpired)
 from functools import wraps
 import base64
-import json
+import pandas as pd
+
 
 app = Flask(__name__)
-app.config['DEBUG'] = True
+app.config['DEBUG'] = AppConfiguration.debug
 for k, v in AppConfiguration.db_values.items():
     app.config[k] = v
-
 db = SQLAlchemy(app)
-
 if AppConfiguration.create_all is True:
     db.create_all()
-
 migrate = Migrate(app, db)
-
 app.secret_key = AppConfiguration.secret_key
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = AppConfiguration.login_view
 
+
 class LinkedInRecord(db.Model):
+    """
+    DB Model for Profile Data
+    """
     __tablename__ = 'Profiles'
     member_id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    created = db.Column(db.Date, default=date.today())
-    updated = db.Column(db.Date, default=None)
+    first_name = db.Column(db.String)
+    last_name = db.Column(db.String)
+    summary = db.Column(db.Text)
+
     metro = db.Column(db.Text)
     postal_code = db.Column(db.Text)
     country_code = db.Column(db.Text)
     language = db.Column(db.Text)
     industry = db.Column(db.Text)
     skills = db.Column(db.Text)
-    summary = db.Column(db.Text)
 
     company_0 = db.Column(db.Text)
-    company_1 = db.Column(db.Text)
-    company_2 = db.Column(db.Text)
-
     company_url_0 = db.Column(db.Text)
-    company_url_1 = db.Column(db.Text)
-    company_url_2 = db.Column(db.Text)
-
     title_0 = db.Column(db.Text)
-    title_1 = db.Column(db.Text)
-    title_2 = db.Column(db.Text)
-
     start_date_0 = db.Column(db.Date)
     end_date_0 = db.Column(db.Date)
+    summary_0 = db.Column(db.Text)
+
+    company_1 = db.Column(db.Text)
+    company_url_1 = db.Column(db.Text)
+    title_1 = db.Column(db.Text)
     start_date_1 = db.Column(db.Date)
     end_date_1 = db.Column(db.Date)
+    summary_1 = db.Column(db.Text)
+
+    company_2 = db.Column(db.Text)
+    company_url_2 = db.Column(db.Text)
+    title_2 = db.Column(db.Text)
     start_date_2 = db.Column(db.Date)
     end_date_2 = db.Column(db.Date)
-
-    summary_0 = db.Column(db.Text)
-    summary_1 = db.Column(db.Text)
     summary_2 = db.Column(db.Text)
+
+    created = db.Column(db.Date, default=date.today())
+    updated = db.Column(db.Date, default=None)
+
     education_school = db.Column(db.Text)
     education_start = db.Column(db.Date)
     education_end = db.Column(db.Date)
@@ -78,63 +80,47 @@ class LinkedInRecord(db.Model):
     public_url = db.Column(db.Text, unique=True)
     recruiter_url = db.Column(db.Text, unique=True)
 
-    from_users = db.Column(db.Text, default=None)
+    _from_users = db.Column(db.Text, default=None)
+    _raw_json = db.Column(db.PickleType)
 
     def __init__(self, LinkedInProfile):
+        """
+        :param LinkedInProfile:
+        """
+        for k, v in LinkedInProfile.__dict__.items():
+            if k[0] == '_':
+                continue
+            try:
+                setattr(self, self.k, v)
+            except AttributeError:
+                self._set_entry(k, v)
 
-        self.member_id = LinkedInProfile.member_id
-        self.name = LinkedInProfile.name
-        self.metro = LinkedInProfile.metro
-        self.postal_code = LinkedInProfile.postal_code
-        self.country_code = LinkedInProfile.country_code
-        self.language = LinkedInProfile.language
-        self.industry = LinkedInProfile.industry
-        self.skills = LinkedInProfile.skills
-        self.summary = LinkedInProfile.summary
+    def _set_entry(self, k, v):
 
-        self.company_0 = LinkedInProfile.companyName_0
-        self.company_1 = LinkedInProfile.companyName_1
-        self.company_2 = LinkedInProfile.companyName_2
 
-        self.company_url_0 = LinkedInProfile.companyUrl_0
-        self.company_url_1 = LinkedInProfile.companyUrl_1
-        self.company_url_2 = LinkedInProfile.companyUrl_2
 
-        self.title_0 = LinkedInProfile.title_0
-        self.title_1 = LinkedInProfile.title_1
-        self.title_2 = LinkedInProfile.title_2
 
-        self.start_date_0 = LinkedInProfile.start_date_0
-        self.end_date_0 = LinkedInProfile.end_date_0
-        self.start_date_1 = LinkedInProfile.start_date_1
-        self.end_date_1 = LinkedInProfile.end_date_1
-        self.start_date_2 = LinkedInProfile.start_date_2
-        self.end_date_2 = LinkedInProfile.end_date_2
 
-        self.summary_0 = LinkedInProfile.summary_0
-        self.summary_1 = LinkedInProfile.summary_1
-        self.summary_2 = LinkedInProfile.summary_2
-
-        self.education_school = LinkedInProfile.education_school
-        self.education_start = LinkedInProfile.education_start
-        self.education_end = LinkedInProfile.education_end
-        self.education_degree = LinkedInProfile.education_degree
-        self.education_study_field = LinkedInProfile.education_study_field
-        self.public_url = LinkedInProfile.public_url
-        self.recruiter_url = LinkedInProfile.recruiter_url
 
 class UserCache(db.Model):
-
+    """
+    DB Model that holds member IDs in cached. Relationship with Users
+    """
     __tablename__ = "UserCache"
     cache_id = db.Column(db.Text, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('Users.id'))
     cached = db.Column(db.PickleType)
+    created = db.Column(db.DateTime, default=datetime.now())
 
     def __init__(self):
         self.cache_id = self.generate_string()
         self.cached = []
 
     def generate_string(self):
+        """
+
+        :return: Random ascii letters (string)
+        """
         l = ascii_letters
         holder = []
         for i in range(16):
@@ -145,6 +131,7 @@ class UserCache(db.Model):
         current_cache = self.cached
         new_cache = current_cache + [member_id]
         self.cached = new_cache
+
 
 def requires_key(func):
     @wraps(func)
@@ -182,8 +169,6 @@ class User(UserMixin, db.Model):
 
         print("Cache is  {}".format(cache_id))
         return s.dumps({'id': self.id, 'session': session_number, 'cache_id': cache_id})
-
-
 
     @staticmethod
     def verify_auth_token(token):
@@ -399,7 +384,7 @@ def profile():
 
     # Add the member id to the user's most recent cache
 
-    user_current_cache = user_from_api.caches[0]
+    user_current_cache = user_from_api.caches[-1]
     user_current_cache.append_cache(parsed_data.member_id)
 
     db.session.add(profile_record)
@@ -409,13 +394,53 @@ def profile():
 
     return jsonify({'action': 'success'}), 201
 
+@app.route('/download/<cache_id>', methods=['GET'])
+@login_required
+def serve_file(cache_id):
+
+    current_user_id = current_user.id
+
+    # Find User with this ID
+    user = User.query.filter_by(id=current_user_id).first()
+
+    if user is None or user is False:
+        abort(400)
+    user_caches = user.caches
+    user_caches_ids = [uc.cache_id for uc in user_caches]
+    if cache_id not in user_caches_ids:
+        abort(400)
+    fetched_cache = UserCache.query.filter_by(cache_id=cache_id).first()
+    cached_data = fetched_cache.cached
+    data = []
+
+    def row2dict(row):
+        d = {}
+        for column in row.__table__.columns:
+            if column.name == 'name':
+                v = str(getattr(row, column.name))
+                v = v.replace("<first>", "").replace("</first>", "").replace("<last>", "").replace("</last>", "")
+                d[column.name] = v
+            elif column.name == 'from_users' or column.name == 'update':
+                continue
+            else:
+                d[column.name] = str(getattr(row, column.name))
+        return d
+
+    for mem_id in cached_data:
+        data.append(row2dict(LinkedInRecord.query.filter_by(member_id=mem_id).first()))
+
+    df = pd.DataFrame(data)
+    csv_text = df.to_csv(index=False)
+    return Response(csv_text, mimetype="text/csv",
+                    headers={"Content-disposition": "attachment; filename={}.csv".format(cache_id)})
+
 
 @app.route('/api/v1/fetch', methods=['GET'])
 @requires_key
-def fetch_profiles():
+def fetch_user_caches():
     user_from_api = load_user_from_request(request)
     user_current_cache = user_from_api.caches[0].cached
-    print(user_current_cache)
+
 
     # TODO Serve a CSV
     return jsonify({'profiles': user_current_cache})

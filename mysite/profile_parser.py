@@ -1,6 +1,7 @@
 from datetime import date
 import re
 
+
 class LinkedInProfile(object):
     """
     Class that handles transforming JSON POST Data to Inserting to MySQL DB
@@ -8,9 +9,10 @@ class LinkedInProfile(object):
     """
 
     def __init__(self, raw):
-        self.raw = raw['data']
+        self._raw = raw['data']
         self.member_id = None
-        self.name = None
+        self.first_name = None
+        self.last_name = None
         self.created = None
         self.updated = None
         self.metro = None
@@ -61,7 +63,7 @@ class LinkedInProfile(object):
                            'startDateMonth',
                            'companyId', 'endDateMonth', 'endDateYear']
 
-        positions_ = self.raw.get('positions', False)
+        positions_ = self._raw.get('positions', False)
         if positions_:
             # Accept only 3 positions
             positions = positions_[0:3]
@@ -78,8 +80,6 @@ class LinkedInProfile(object):
                 # Pass to helper function. Handles updating dictionary
 
                 for k, v in dated_dict.items():
-
-
                     self.__dict__[k] = v
 
     def date_format_helper(self, month, year):
@@ -132,14 +132,11 @@ class LinkedInProfile(object):
 
     def parse_profile(self):
 
-        profile_ = self.raw.get('profile', False)
+        profile_ = self._raw.get('profile', False)
         if profile_:
-            self.member_id = profile_.get('memberId')
-            self.name = "<first>{}</first> <last>{}</last>".format(profile_.get('firstName', ""),
-                                                                   profile_.get('lastName', ""))
-            # TODO self.created is it a new record or an update?
-            # TODO self.updated
-
+            self.member_id = profile_.get('memberId', None)
+            self.first_name = profile_.get('firstName', '')
+            self.last_name = profile_.get('lastName', '')
             self.metro = profile_.get('location', None)
 
             # Use regex for postal code and zip code
@@ -172,7 +169,7 @@ class LinkedInProfile(object):
 
     def parse_educations(self, educations):
         if educations is False:
-            return
+            return None
 
         # May be 1 or more
         # Choose most recent
