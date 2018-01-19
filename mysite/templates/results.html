@@ -4,7 +4,7 @@
 {% block results %}
 {% if success == 'True' %}
 <div class="container-fluid bg-grey text-center">
-    <table class="table">
+    <table class="table table-striped">
     <thead>
       <tr>
           {% for header in headers %}
@@ -22,7 +22,7 @@
           {% else %}
             {% set view_value = sub_v %}
           {% endif %}
-        <td> {{ view_value }} </td>
+        <td class="text-center"> {{ view_value }} </td>
             {% endfor %}
       </tr>
         {% endfor %}

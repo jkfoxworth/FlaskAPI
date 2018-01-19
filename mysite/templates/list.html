@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="container-fluid text-center">
-<table class="table">
+<table class="table table-striped">
  <tr class="bg-grey">
      <th class="text-center">Name</th>
      <th class="text-center">Metro</th>
@@ -23,15 +23,15 @@
         {% else %}
             {% set workdate = "{}-{}".format(row["start_date_0"], row["end_date_0"]) %}
         {% endif %}
-        <td>{{displayname}}</td>
-        <td>{{row["metro"]}}</td>
-        <td>{{row["postal_code"]}}</td>
-        <td>{{row["companyName_0"]}}</td>
-        <td>{{row["title_0"]}}</td>
-        <td>{{row["summary_0"]}}</td>
-        <td>{{workdate}}</td>
-        <td><a href="{{row['public_url']}}">Public Profile</a></td>
-        <td><a href="{{row['recruiter_url']}}">Recruiter Profile</a></td>
+        <td class="text-center">{{displayname}}</td>
+        <td class="text-center">{{row["metro"]}}</td>
+        <td class="text-center">{{row["postal_code"]}}</td>
+        <td class="text-center">{{row["companyName_0"]}}</td>
+        <td class="text-center">{{row["title_0"]}}</td>
+        <td class="text-center">{{row["summary_0"]}}</td>
+        <td class="text-center">{{workdate}}</td>
+        <td class="text-center"><a href="{{row['public_url']}}">Public Profile</a></td>
+        <td class="text-center"><a href="{{row['recruiter_url']}}">Recruiter Profile</a></td>
     </tr>
  {% endfor %}
 </table>
