@@ -30,6 +30,12 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = AppConfiguration.login_view
 
+UserRecords = db.Table('UserRecords',
+    db.Column('user_id', db.Integer, db.ForeignKey('Users.id'), primary_key=True),
+    db.Column('member_id', db.Integer, db.ForeignKey('Profiles.member_id'), primary_key=True)
+)
+
+
 
 class LinkedInRecord(db.Model):
     """
@@ -81,6 +87,7 @@ class LinkedInRecord(db.Model):
     recruiter_url = db.Column(db.Text, unique=True)
 
     _raw_json = db.Column(db.PickleType)
+
 
     def __init__(self, LinkedInProfile):
         """
@@ -151,12 +158,14 @@ class User(UserMixin, db.Model):
     __tablename__ = "Users"
 
     id = db.Column(db.Integer, primary_key=True)
+    user_type = db.Column(db.Text, default='normal')
     username = db.Column(db.String(128))
     password_hash = db.Column(db.String(128))
     api_key = db.Column(db.Text)
     current_session_user = db.Column(db.Integer, default=0)
     last_session_user = db.Column(db.Integer)
     caches = db.relationship('UserCache', backref='user')
+    records = db.relationship('LinkedInRecord', secondary=UserRecords, lazy='subquery', backref=db.backref('users', lazy=True))
     # Generating a random key to return to Extension after login success
 
     def generate_auth_token(self, expiration=86400):
@@ -281,15 +290,13 @@ def login():
 @app.route('/api/v1/token', methods=['POST'])
 def get_auth_token():
 
-    # Requires authorization
-
     user = load_user_from_request(request)
-    print(user)
     if user:
         token = user.generate_auth_token()
         return jsonify({'token': token.decode('ascii')})
     else:
         return abort(401)
+
 
 @app.route('/api/v1/test_token', methods=['GET'])
 @requires_key
@@ -350,7 +357,11 @@ def logout():
 @app.route('/profiles', methods=['GET'])
 @login_required
 def list():
-    return render_template("list.html", rows=LinkedInRecord.query.all())
+    if current_user.user_type == 'admin':
+        return render_template("list.html", rows=LinkedInRecord.query.all())
+    else:
+        return render_template("list.html", rows=[LinkedInRecord.query.filter_by(member_id=cur.member_id).first() for
+                                                  cur in current_user.records])
 
 @app.route('/api/v1/profiles', methods=['POST'])
 @requires_key
@@ -383,6 +394,7 @@ def profile():
 
     user_current_cache = user_from_api.caches[-1]
     user_current_cache.append_cache(parsed_data.member_id)
+    user_from_api.records.append(profile_record)
 
     db.session.add(profile_record)
     db.session.commit()
