@@ -425,14 +425,12 @@ def serve_file(cache_id):
     def row2dict(row):
         d = {}
         for column in row.__table__.columns:
-            if column.name == 'name':
-                v = str(getattr(row, column.name))
-                v = v.replace("<first>", "").replace("</first>", "").replace("<last>", "").replace("</last>", "")
-                d[column.name] = v
-            elif column.name == 'from_users' or column.name == 'update':
+            if column.name[0] == '_':
                 continue
-            else:
-                d[column.name] = str(getattr(row, column.name))
+            row_val = str(getattr(row, column.name))
+            if row_val is None or row_val == 'None':
+                row_val = ''
+            d[column.name] = row_val
         return d
 
     for mem_id in cached_data:
