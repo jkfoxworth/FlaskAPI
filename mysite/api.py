@@ -48,22 +48,22 @@ class LinkedInRecord(db.Model):
     industry = db.Column(db.Text)
     skills = db.Column(db.Text)
 
-    company_0 = db.Column(db.Text)
-    company_url_0 = db.Column(db.Text)
+    companyName_0 = db.Column(db.Text)
+    companyUrl_0 = db.Column(db.Text)
     title_0 = db.Column(db.Text)
     start_date_0 = db.Column(db.Date)
     end_date_0 = db.Column(db.Date)
     summary_0 = db.Column(db.Text)
 
-    company_1 = db.Column(db.Text)
-    company_url_1 = db.Column(db.Text)
+    companyName_1 = db.Column(db.Text)
+    companyUrl_1 = db.Column(db.Text)
     title_1 = db.Column(db.Text)
     start_date_1 = db.Column(db.Date)
     end_date_1 = db.Column(db.Date)
     summary_1 = db.Column(db.Text)
 
-    company_2 = db.Column(db.Text)
-    company_url_2 = db.Column(db.Text)
+    companyName_2 = db.Column(db.Text)
+    companyUrl_2 = db.Column(db.Text)
     title_2 = db.Column(db.Text)
     start_date_2 = db.Column(db.Date)
     end_date_2 = db.Column(db.Date)
@@ -80,8 +80,7 @@ class LinkedInRecord(db.Model):
     public_url = db.Column(db.Text, unique=True)
     recruiter_url = db.Column(db.Text, unique=True)
 
-    _from_users = db.Column(db.Text, default=None)
-    _raw_json = db.Column(db.PickleType)
+    _raw = db.Column(db.PickleType)
 
     def __init__(self, LinkedInProfile):
         """
@@ -91,15 +90,13 @@ class LinkedInRecord(db.Model):
             if k[0] == '_':
                 continue
             try:
-                setattr(self, self.k, v)
+                setattr(self, k, v)
             except AttributeError:
                 self._set_entry(k, v)
 
     def _set_entry(self, k, v):
-
-
-
-
+        k_ = "_" + k
+        setattr(self, k_, v)
 
 
 class UserCache(db.Model):
@@ -416,11 +413,7 @@ def serve_file(cache_id):
     def row2dict(row):
         d = {}
         for column in row.__table__.columns:
-            if column.name == 'name':
-                v = str(getattr(row, column.name))
-                v = v.replace("<first>", "").replace("</first>", "").replace("<last>", "").replace("</last>", "")
-                d[column.name] = v
-            elif column.name == 'from_users' or column.name == 'update':
+            if column.name[0] == '_':
                 continue
             else:
                 d[column.name] = str(getattr(row, column.name))
@@ -439,11 +432,24 @@ def serve_file(cache_id):
 @requires_key
 def fetch_user_caches():
     user_from_api = load_user_from_request(request)
-    user_current_cache = user_from_api.caches[0].cached
+    user_caches = user_from_api.caches
+    user_caches_ids = [uc.cache_id for uc in user_caches]
+    user_caches_dt = [uc.created.isoformat() for uc in user_caches]
+    cache_data = dict(zip(user_caches_ids, user_caches_dt))
 
+    return jsonify({'caches': cache_data})
 
-    # TODO Serve a CSV
-    return jsonify({'profiles': user_current_cache})
+@app.route('/fetch', methods=['GET'])
+@login_required
+def fetch_user_caches_view():
+    user_caches = current_user.caches
+    user_caches_ids = [uc.cache_id for uc in user_caches]
+    user_caches_dt = [uc.created for uc in user_caches]
+    user_caches_counts = [len(uc.cached) for uc in user_caches]
+    user_caches_v = [(c, d) for c, d in zip(user_caches_counts, user_caches_dt)]
+    cache_data = dict(zip(user_caches_ids, user_caches_v))
+
+    return render_template('cache_list.html', cache_data=cache_data)
 
 
 def format_results(record):
@@ -471,16 +477,14 @@ def handle_update(profile_record, user_id):
         try:
             old_value = getattr(old_record, key)
             new_value = getattr(profile_record, key)
-        except KeyError:
+        except AttributeError as e:
+            print(e)
             continue
         if old_value != new_value:
-            setattr(old_record, new_value)
+            setattr(old_record, key, new_value)
 
         old_record.__dict__[k] = v
     old_record.updated = date.today()
-    current_from_users = old_record.from_users
-    old_record.from_users = current_from_users + "_" + str(user_id) + "_"
-
     return old_record
 
 

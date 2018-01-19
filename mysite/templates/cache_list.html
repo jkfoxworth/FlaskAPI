@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container-fluid text-center">
+<table class="table">
+ <tr class="bg-grey">
+     <th class="text-center">File Name</th>
+     <th class="text-center">Record Count</th>
+     <th class="text-center">Created Date</th>
+ </tr>
+
+ {% for k, v in cache_data.items() %}
+    <tr>
+        {% set display_time = v[1].strftime('%b %d %Y at %I:%M %p') %}
+        {% set record_count = v[0] %}
+        <td><a href="/download/{{k}}">{{k}}</a></td>
+        <td>{{record_count}}</td>
+        <td>{{display_time}}</td>
+    </tr>
+ {% endfor %}
+</table>
+</div>
+{% endblock %}

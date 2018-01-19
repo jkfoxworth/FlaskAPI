@@ -9,7 +9,7 @@ class LinkedInProfile(object):
     """
 
     def __init__(self, raw):
-        self._raw = raw['data']
+        self.raw = raw['data']
         self.member_id = None
         self.first_name = None
         self.last_name = None
@@ -63,7 +63,7 @@ class LinkedInProfile(object):
                            'startDateMonth',
                            'companyId', 'endDateMonth', 'endDateYear']
 
-        positions_ = self._raw.get('positions', False)
+        positions_ = self.raw.get('positions', False)
         if positions_:
             # Accept only 3 positions
             positions = positions_[0:3]
@@ -132,7 +132,7 @@ class LinkedInProfile(object):
 
     def parse_profile(self):
 
-        profile_ = self._raw.get('profile', False)
+        profile_ = self.raw.get('profile', False)
         if profile_:
             self.member_id = profile_.get('memberId', None)
             self.first_name = profile_.get('firstName', '')
