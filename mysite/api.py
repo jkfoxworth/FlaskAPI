@@ -14,7 +14,7 @@ from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer, BadSignature, SignatureExpired)
 from functools import wraps
 import base64
-import pandas as pd
+import csv_parser
 
 
 app = Flask(__name__)
@@ -436,8 +436,7 @@ def serve_file(cache_id):
     for mem_id in cached_data:
         data.append(row2dict(LinkedInRecord.query.filter_by(member_id=mem_id).first()))
 
-    df = pd.DataFrame(data)
-    csv_text = df.to_csv(index=False)
+    csv_text = csv_parser.db_to_csv(data)
     return Response(csv_text, mimetype="text/csv",
                     headers={"Content-disposition": "attachment; filename={}.csv".format(cache_id)})
 
