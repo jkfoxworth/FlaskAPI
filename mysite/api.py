@@ -88,8 +88,8 @@ class LinkedInRecord(db.Model):
     education_end = db.Column(db.Date)
     education_degree = db.Column(db.Text)
     education_study_field = db.Column(db.Text)
-    public_url = db.Column(db.Text, unique=True)
-    recruiter_url = db.Column(db.Text, unique=True)
+    public_url = db.Column(db.Text)
+    recruiter_url = db.Column(db.Text)
 
     _raw_json = db.Column(db.PickleType)
 
