@@ -3,6 +3,7 @@ sys.path.append('mysite')
 from app_config import AppConfiguration
 from flask import Flask, render_template, redirect, url_for, request, abort, jsonify, Response
 from profile_parser import LinkedInProfile
+from pruner import ProfilePruner
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import login_user, LoginManager, UserMixin, login_required, logout_user, current_user
@@ -13,11 +14,13 @@ from string import ascii_letters
 from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer, BadSignature, SignatureExpired)
 from functools import wraps
+
 import base64
-import csv_parser
+import pandas as pd
 
 
 app = Flask(__name__)
+
 app.config['DEBUG'] = AppConfiguration.debug
 for k, v in AppConfiguration.db_values.items():
     app.config[k] = v
@@ -29,6 +32,8 @@ app.secret_key = AppConfiguration.secret_key
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = AppConfiguration.login_view
+
+
 
 UserRecords = db.Table('UserRecords',
     db.Column('user_id', db.Integer, db.ForeignKey('Users.id'), primary_key=True),
@@ -436,7 +441,8 @@ def serve_file(cache_id):
     for mem_id in cached_data:
         data.append(row2dict(LinkedInRecord.query.filter_by(member_id=mem_id).first()))
 
-    csv_text = csv_parser.db_to_csv(data)
+    df = pd.DataFrame(data)
+    csv_text = df.to_csv(index=False)
     return Response(csv_text, mimetype="text/csv",
                     headers={"Content-disposition": "attachment; filename={}.csv".format(cache_id)})
 
@@ -463,6 +469,41 @@ def fetch_user_caches_view():
     cache_data = dict(zip(user_caches_ids, user_caches_v))
 
     return render_template('cache_list.html', cache_data=cache_data)
+
+@app.route('/api/v1/prune', methods=['GET', 'POST'])
+@requires_key
+def prune():
+    data = request.json['data']
+
+    profile_pruner = ProfilePruner(data)
+    pruned_urls = []
+
+    def prune_record(lookup_result):
+        created_date = lookup_result.created
+        if created_date is None:
+            return True
+        if (date.today() - created_date).days >= profile_pruner.RECORD_IS_OLD:
+            return True
+        else:
+            return False
+
+    for k, v in profile_pruner.reference.items():
+        member_id = v['member_id']
+        lookup_result = LinkedInRecord.query.filter_by(member_id=member_id).first()
+        if lookup_result:
+            if prune_record(lookup_result) is False:
+                user_from_api = load_user_from_request(request)
+                user_current_cache = user_from_api.caches[-1]
+                user_current_cache.append_cache(lookup_result)
+                user_from_api.records.append(lookup_result)
+                db.session.commit()
+                profile_pruner.reference[k] = False
+
+    for k, v in profile_pruner.reference.items():
+        if v:
+            pruned_urls.append(v['url'])
+
+    return jsonify({'data': pruned_urls})
 
 
 def format_results(record):
