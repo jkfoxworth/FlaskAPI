@@ -48,8 +48,8 @@ class LinkedInRecord(db.Model):
     """
     __tablename__ = 'Profiles'
     member_id = db.Column(db.Integer, primary_key=True)
-    first_name = db.Column(db.String)
-    last_name = db.Column(db.String)
+    first_name = db.Column(db.String(128))
+    last_name = db.Column(db.String(128))
     summary = db.Column(db.Text)
 
     metro = db.Column(db.Text)
@@ -170,7 +170,8 @@ class User(UserMixin, db.Model):
     current_session_user = db.Column(db.Integer, default=0)
     last_session_user = db.Column(db.Integer)
     caches = db.relationship('UserCache', backref='user')
-    records = db.relationship('LinkedInRecord', secondary=UserRecords, lazy='subquery', backref=db.backref('users', lazy=True))
+    records = db.relationship('LinkedInRecord', secondary=UserRecords, lazy='subquery',
+                              backref=db.backref('users', lazy=True))
     # Generating a random key to return to Extension after login success
 
     def generate_auth_token(self, expiration=86400):
@@ -408,6 +409,7 @@ def profile():
 
     return jsonify({'action': 'success'}), 201
 
+
 @app.route('/download/<cache_id>', methods=['GET'])
 @login_required
 def serve_file(cache_id):
@@ -458,6 +460,7 @@ def fetch_user_caches():
 
     return jsonify({'caches': cache_data})
 
+
 @app.route('/fetch', methods=['GET'])
 @login_required
 def fetch_user_caches_view():
@@ -469,6 +472,7 @@ def fetch_user_caches_view():
     cache_data = dict(zip(user_caches_ids, user_caches_v))
 
     return render_template('cache_list.html', cache_data=cache_data)
+
 
 @app.route('/api/v1/prune', methods=['GET', 'POST'])
 @requires_key
@@ -496,7 +500,8 @@ def prune():
                 user_current_cache = user_from_api.caches[-1]
                 user_current_cache.append_cache(lookup_result)
                 user_from_api.records.append(lookup_result)
-                db.session.commit()
+                db.session.add(user_current_cache)
+                db.session.add(user_from_api)
                 profile_pruner.reference[k] = False
 
     for k, v in profile_pruner.reference.items():
@@ -517,6 +522,7 @@ def format_results(record):
         else:
             holder[k] = v
     return holder
+
 
 def handle_update(profile_record, user_id):
 
