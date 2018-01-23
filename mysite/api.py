@@ -112,7 +112,7 @@ class UserCache(db.Model):
     DB Model that holds member IDs in cached. Relationship with Users
     """
     __tablename__ = "UserCache"
-    cache_id = db.Column(db.Text(16), primary_key=True)
+    cache_id = db.Column(db.String(16), primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('Users.id'))
     cached = db.Column(db.PickleType)
     created = db.Column(db.DateTime, default=datetime.now())
