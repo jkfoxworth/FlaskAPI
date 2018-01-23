@@ -14,13 +14,11 @@ from string import ascii_letters
 from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer, BadSignature, SignatureExpired)
 from functools import wraps
-
 import base64
-import pandas as pd
+import csv_parser
 
 
 app = Flask(__name__)
-
 app.config['DEBUG'] = AppConfiguration.debug
 for k, v in AppConfiguration.db_values.items():
     app.config[k] = v
@@ -33,13 +31,12 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = AppConfiguration.login_view
 
-
+# Data Models
 
 UserRecords = db.Table('UserRecords',
     db.Column('user_id', db.Integer, db.ForeignKey('Users.id'), primary_key=True),
     db.Column('member_id', db.Integer, db.ForeignKey('Profiles.member_id'), primary_key=True)
 )
-
 
 
 class LinkedInRecord(db.Model):
@@ -93,7 +90,6 @@ class LinkedInRecord(db.Model):
 
     _raw_json = db.Column(db.PickleType)
 
-
     def __init__(self, LinkedInProfile):
         """
         :param LinkedInProfile:
@@ -140,22 +136,6 @@ class UserCache(db.Model):
         current_cache = self.cached
         new_cache = current_cache + [member_id]
         self.cached = new_cache
-
-
-def requires_key(func):
-    @wraps(func)
-    def wrapped(*args, **kwargs):
-        api_key = request.headers.get('Api-Key', False)
-        if api_key is False:
-            abort(400)
-        if User.verify_auth_token(api_key) is False:
-            abort(400)
-        elif User.verify_auth_token(api_key) is None:
-            abort(401)
-        else:
-            return func(*args, **kwargs)
-        return func(*args, **kwargs)
-    return wrapped
 
 
 class User(UserMixin, db.Model):
@@ -227,8 +207,23 @@ class User(UserMixin, db.Model):
     def get_id(self):
         return self.username
 
-# TODO Add table mapping User to associated sessions
-# TODO Add table mapping sessions to records
+# Wrappers
+
+
+def requires_key(func):
+    @wraps(func)
+    def wrapped(*args, **kwargs):
+        api_key = request.headers.get('Api-Key', False)
+        if api_key is False:
+            abort(400)
+        if User.verify_auth_token(api_key) is False:
+            abort(400)
+        elif User.verify_auth_token(api_key) is None:
+            abort(401)
+        else:
+            return func(*args, **kwargs)
+        return func(*args, **kwargs)
+    return wrapped
 
 
 @login_manager.user_loader
@@ -293,23 +288,6 @@ def login():
     return redirect(url_for('index'))
 
 
-@app.route('/api/v1/token', methods=['POST'])
-def get_auth_token():
-
-    user = load_user_from_request(request)
-    if user:
-        token = user.generate_auth_token()
-        return jsonify({'token': token.decode('ascii')})
-    else:
-        return abort(401)
-
-
-@app.route('/api/v1/test_token', methods=['GET'])
-@requires_key
-def t():
-    return jsonify({'message': 'valid token'})
-
-
 @app.route('/search', methods=['GET', 'POST'])
 @login_required
 def search():
@@ -320,7 +298,7 @@ def search():
     elif request.method == 'POST':
 
         search_query = {'title_0': '%{}%'.format(request.form.get('job_title', 'empty')),
-                        'company_0': '%{}%'.format(request.form.get('company', 'empty')),
+                        'companyName_0': '%{}%'.format(request.form.get('company', 'empty')),
                         'metro': '%{}%'.format(request.form.get('metro', 'empty')),
                         'summary_0': '%{}%'.format(request.form.get('summary_0', 'empty'))}
                         # 'keywords': '%{}%'.format(request.form.get('keywords', 'empty'))}
@@ -336,22 +314,24 @@ def search():
 
             base_query = base_query.filter(LinkedInRecord.__dict__[k].ilike(v))
 
-        print(base_query)
         search_results = base_query.all()
-        print(search_results)
+
 
         # TODO Better way to define headers, return values
 
         headers = ['Name', 'Job Title', 'Company', 'Location', 'Job Description']
         results = []
         for searched_result in search_results:
-            result_tuple = (searched_result.name, searched_result.title_0, searched_result.company_0, searched_result.metro, searched_result.summary_0)
+            result_tuple = (("{} {}".format(searched_result.first_name, searched_result.last_name)),
+                            searched_result.title_0,
+                            searched_result.companyName_0, searched_result.metro, searched_result.summary_0)
             results.append(result_tuple)
         if results:
 
             return render_template('results.html', success='True', headers=headers, results=results)
         else:
             return render_template('search.html', success='False')
+
 
 @app.route("/logout/")
 @login_required
@@ -368,6 +348,74 @@ def list():
     else:
         return render_template("list.html", rows=[LinkedInRecord.query.filter_by(member_id=cur.member_id).first() for
                                                   cur in current_user.records])
+
+@app.route('/fetch', methods=['GET'])
+@login_required
+def fetch_user_caches_view():
+    user_caches = current_user.caches
+    user_caches_ids = [uc.cache_id for uc in user_caches]
+    user_caches_dt = [uc.created for uc in user_caches]
+    user_caches_counts = [len(uc.cached) for uc in user_caches]
+    user_caches_v = [(c, d) for c, d in zip(user_caches_counts, user_caches_dt)]
+    cache_data = dict(zip(user_caches_ids, user_caches_v))
+
+    return render_template('cache_list.html', cache_data=cache_data)
+
+
+@app.route('/download/<cache_id>', methods=['GET'])
+@login_required
+def serve_file(cache_id):
+
+    current_user_id = current_user.id
+
+    # Find User with this ID
+    user = User.query.filter_by(id=current_user_id).first()
+
+    if user is None or user is False:
+        abort(400)
+    user_caches = user.caches
+    user_caches_ids = [uc.cache_id for uc in user_caches]
+    if cache_id not in user_caches_ids:
+        abort(400)
+    fetched_cache = UserCache.query.filter_by(cache_id=cache_id).first()
+    cached_data = fetched_cache.cached
+    data = []
+
+    def row2dict(row):
+        d = {}
+        for column in row.__table__.columns:
+            if column.name[0] == '_':
+                continue
+            row_val = str(getattr(row, column.name))
+            if row_val is None or row_val == 'None':
+                row_val = ''
+            d[column.name] = row_val
+        return d
+
+    for mem_id in cached_data:
+        data.append(row2dict(LinkedInRecord.query.filter_by(member_id=mem_id).first()))
+
+    csv_text = csv_parser.db_to_csv(data)
+    return Response(csv_text, mimetype="text/csv",
+                    headers={"Content-disposition": "attachment; filename={}.csv".format(cache_id)})
+
+
+@app.route('/api/v1/token', methods=['POST'])
+def get_auth_token():
+
+    user = load_user_from_request(request)
+    if user:
+        token = user.generate_auth_token()
+        return jsonify({'token': token.decode('ascii')})
+    else:
+        return abort(401)
+
+
+@app.route('/api/v1/test_token', methods=['GET'])
+@requires_key
+def t():
+    return jsonify({'message': 'valid token'})
+
 
 @app.route('/api/v1/profiles', methods=['POST'])
 @requires_key
@@ -410,71 +458,7 @@ def profile():
     return jsonify({'action': 'success'}), 201
 
 
-@app.route('/download/<cache_id>', methods=['GET'])
-@login_required
-def serve_file(cache_id):
-
-    current_user_id = current_user.id
-
-    # Find User with this ID
-    user = User.query.filter_by(id=current_user_id).first()
-
-    if user is None or user is False:
-        abort(400)
-    user_caches = user.caches
-    user_caches_ids = [uc.cache_id for uc in user_caches]
-    if cache_id not in user_caches_ids:
-        abort(400)
-    fetched_cache = UserCache.query.filter_by(cache_id=cache_id).first()
-    cached_data = fetched_cache.cached
-    data = []
-
-    def row2dict(row):
-        d = {}
-        for column in row.__table__.columns:
-            if column.name[0] == '_':
-                continue
-            row_val = str(getattr(row, column.name))
-            if row_val is None or row_val == 'None':
-                row_val = ''
-            d[column.name] = row_val
-        return d
-
-    for mem_id in cached_data:
-        data.append(row2dict(LinkedInRecord.query.filter_by(member_id=mem_id).first()))
-
-    df = pd.DataFrame(data)
-    csv_text = df.to_csv(index=False)
-    return Response(csv_text, mimetype="text/csv",
-                    headers={"Content-disposition": "attachment; filename={}.csv".format(cache_id)})
-
-
-@app.route('/api/v1/fetch', methods=['GET'])
-@requires_key
-def fetch_user_caches():
-    user_from_api = load_user_from_request(request)
-    user_caches = user_from_api.caches
-    user_caches_ids = [uc.cache_id for uc in user_caches]
-    user_caches_dt = [uc.created.isoformat() for uc in user_caches]
-    cache_data = dict(zip(user_caches_ids, user_caches_dt))
-
-    return jsonify({'caches': cache_data})
-
-
-@app.route('/fetch', methods=['GET'])
-@login_required
-def fetch_user_caches_view():
-    user_caches = current_user.caches
-    user_caches_ids = [uc.cache_id for uc in user_caches]
-    user_caches_dt = [uc.created for uc in user_caches]
-    user_caches_counts = [len(uc.cached) for uc in user_caches]
-    user_caches_v = [(c, d) for c, d in zip(user_caches_counts, user_caches_dt)]
-    cache_data = dict(zip(user_caches_ids, user_caches_v))
-
-    return render_template('cache_list.html', cache_data=cache_data)
-
-
-@app.route('/api/v1/prune', methods=['GET', 'POST'])
+@app.route('/api/v1/prune', methods=['POST'])
 @requires_key
 def prune():
     data = request.json['data']
@@ -508,7 +492,7 @@ def prune():
         if v:
             pruned_urls.append(v['url'])
 
-    return jsonify({'data': pruned_urls})
+    return jsonify({'data': pruned_urls}), 201
 
 
 def format_results(record):
@@ -546,8 +530,6 @@ def handle_update(profile_record, user_id):
         old_record.__dict__[k] = v
     old_record.updated = date.today()
     return old_record
-
-
 
 
 if __name__ == '__main__':

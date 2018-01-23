@@ -17,11 +17,8 @@
 
       <tr>
           {% for sub_v in v %}
-          {% if "<first>" in sub_v %}
-            {% set view_value = sub_v.replace("<first>", "").replace("</first>", "").replace("<last>", "").replace("</last>", "")%}
-          {% else %}
-            {% set view_value = sub_v %}
-          {% endif %}
+          {% set view_value = sub_v %}
+
         <td class="text-center"> {{ view_value }} </td>
             {% endfor %}
       </tr>
