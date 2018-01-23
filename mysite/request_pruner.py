@@ -1,5 +1,5 @@
 import re
-from datetime import date
+
 
 class ProfilePruner(object):
 
@@ -14,14 +14,29 @@ class ProfilePruner(object):
     def generate_keys(self):
         ref_dict = {}
         for index, u in enumerate(self.request_urls):
-            ref_dict[index] = {'url': u, 'member_id': self.find_member_id(u)}
+            ref_dict[index] = {'url': u, 'member_id': self.find_member_id(u), 'clean_url': self.clean_url(u)}
         self.reference = ref_dict
 
     def find_member_id(self, url):
-        b = re.compile('[0-9]{3,}(?=,)')
-        mi = b.findall(url)
-        if mi:
-            return mi[0]
+        check_auth_scheme = re.compile('[0-9]{3,},PTS,PTS')
+        simple_finder = re.compile('[0-9]{3,}(?=,)')
+        find_member = re.compile(r'(?<=memberAuth=)[0-9]{3,}')
+        pts_auth = check_auth_scheme.findall(url)
+        if pts_auth:
+            member_id = find_member.findall(url)
+            if member_id:
+                member_id = member_id[0]
+            else:
+                member_id = None
+            return member_id
         else:
-            return ''
+            member_id = simple_finder.findall(url)
+            if member_id:
+                member_id = member_id[0]
+            else:
+                member_id = ''
+            return member_id
+
+    def clean_url(self, url):
+        return url.split("?")[0]
 

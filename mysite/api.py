@@ -490,7 +490,7 @@ def prune():
 
     for k, v in profile_pruner.reference.items():
         if v:
-            pruned_urls.append(v['url'])
+            pruned_urls.append(v['clean_url'])
 
     return jsonify({'data': pruned_urls}), 201
 
