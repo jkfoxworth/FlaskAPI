@@ -3,7 +3,7 @@ sys.path.append('mysite')
 from app_config import AppConfiguration
 from flask import Flask, render_template, redirect, url_for, request, abort, jsonify, Response
 from profile_parser import LinkedInProfile
-from pruner import ProfilePruner
+from request_pruner import ProfilePruner
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import login_user, LoginManager, UserMixin, login_required, logout_user, current_user
