@@ -41,7 +41,7 @@ User_Records = db.Table('User_Records',
                         )
 
 Cache_Records = db.Table('Cache_Records',
-                         db.Column('cache_id', db.Integer, db.ForeignKey('UserCache.cache_id'), primary_key=True),
+                         db.Column('cache_id', db.String(16), db.ForeignKey('UserCache.cache_id'), primary_key=True),
                          db.Column('member_id', db.Integer, db.ForeignKey('Profiles.member_id'), primary_key=True)
                          )
 
@@ -396,7 +396,7 @@ def serve_file(cache_id):
     if cache_id not in user_caches_ids:
         abort(400)
     fetched_cache = UserCache.query.filter_by(cache_id=cache_id).first()
-    cached_data = fetched_cache.cached
+    cached_data = fetched_cache.profiles
     data = []
 
     def row2dict(row):
@@ -410,8 +410,8 @@ def serve_file(cache_id):
             d[column.name] = row_val
         return d
 
-    for mem_id in cached_data:
-        data.append(row2dict(LinkedInRecord.query.filter_by(member_id=mem_id).first()))
+    for prof in cached_data:
+        data.append(row2dict(prof))
 
     csv_text = csv_parser.db_to_csv(data)
     return Response(csv_text, mimetype="text/csv",
