@@ -33,10 +33,37 @@ login_manager.login_view = AppConfiguration.login_view
 
 # Data Models
 
-UserRecords = db.Table('UserRecords',
-    db.Column('user_id', db.Integer, db.ForeignKey('Users.id'), primary_key=True),
-    db.Column('member_id', db.Integer, db.ForeignKey('Profiles.member_id'), primary_key=True)
-)
+# Maps User to their associated records
+
+User_Records = db.Table('User_Records',
+                        db.Column('user_id', db.Integer, db.ForeignKey('Users.id'), primary_key=True),
+                        db.Column('member_id', db.Integer, db.ForeignKey('Profiles.member_id'), primary_key=True)
+                        )
+
+Cache_Records = db.Table('Cache_Records',
+                         db.Column('cache_id', db.Integer, db.ForeignKey('UserCache.cache_id'), primary_key=True),
+                         db.Column('member_id', db.Integer, db.ForeignKey('Profiles.member_id'), primary_key=True)
+                         )
+
+
+def generate_auth_token(user_id, session_number, cache_id, expiration=86400):
+    s = Serializer(app.config['SECRET_KEY'], expires_in=expiration)
+    return s.dumps({'id': user_id, 'session': session_number, 'cache_id': cache_id})
+
+def update_user_token(user):
+    current_session = user.current_session_user
+    new_session = current_session + 1
+    # Increment session number
+    user.current_session_user = new_session
+    # Create a new Cache and append to user's caches
+    new_cache = UserCache()
+    cache_name = new_cache.cache_id
+    user_id_ = user.id
+    user.caches.append(new_cache)
+    db.session.add(user)
+    db.session.commit()
+    auth_token = generate_auth_token(user_id_, new_session, cache_name)
+    return auth_token
 
 
 class LinkedInRecord(db.Model):
@@ -88,14 +115,12 @@ class LinkedInRecord(db.Model):
     public_url = db.Column(db.Text)
     recruiter_url = db.Column(db.Text)
 
-    _raw_json = db.Column(db.PickleType)
-
     def __init__(self, LinkedInProfile):
         """
         :param LinkedInProfile:
         """
         for k, v in LinkedInProfile.__dict__.items():
-            if k[0] == '_':
+            if k[0] == '_': # Include or exclude properties based on _prop naming convetion
                 continue
             try:
                 setattr(self, k, v)
@@ -103,24 +128,28 @@ class LinkedInRecord(db.Model):
                 self._set_entry(k, v)
 
     def _set_entry(self, k, v):
+        # Handles if Table object is intended to be internal
         k_ = "_" + k
         setattr(self, k_, v)
 
 
 class UserCache(db.Model):
     """
-    DB Model that holds member IDs in cached. Relationship with Users
+    DB Model that holds member IDs in cached. Relationship with User (1) to many
     """
     __tablename__ = "UserCache"
     cache_id = db.Column(db.String(16), primary_key=True)
+    friendly_id = db.Column(db.Text)
+    # We want a backref here so that any updates to user as well as UserCache are reflected on both ends
     user_id = db.Column(db.Integer, db.ForeignKey('Users.id'))
-    cached = db.Column(db.PickleType)
+    profiles = db.relationship('LinkedInRecord', secondary=Cache_Records, lazy=True,
+                               backref=db.backref('caches', lazy=True))
     created = db.Column(db.DateTime, default=datetime.now())
 
     def __init__(self):
-        self.cache_id = self.generate_string()
-        self.cached = []
+        self.cache_id = self.generate_string
 
+    @property
     def generate_string(self):
         """
 
@@ -132,11 +161,6 @@ class UserCache(db.Model):
             holder.append(l[random.randrange(0, len(l))])
         return ''.join(holder)
 
-    def append_cache(self, member_id):
-        current_cache = self.cached
-        new_cache = current_cache + [member_id]
-        self.cached = new_cache
-
 
 class User(UserMixin, db.Model):
 
@@ -145,22 +169,13 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_type = db.Column(db.Text, default='normal')
     username = db.Column(db.String(128))
-    password_hash = db.Column(db.String(128))
+    password_hash = db.Column(db.Text)
     api_key = db.Column(db.Text)
     current_session_user = db.Column(db.Integer, default=0)
-    last_session_user = db.Column(db.Integer)
-    caches = db.relationship('UserCache', backref='user')
-    records = db.relationship('LinkedInRecord', secondary=UserRecords, lazy='subquery',
+    caches = db.relationship('UserCache', backref='user', lazy='dynamic')
+    records = db.relationship('LinkedInRecord', secondary=User_Records, lazy=True,
                               backref=db.backref('users', lazy=True))
     # Generating a random key to return to Extension after login success
-
-    def generate_auth_token(self, expiration=86400):
-        s = Serializer(app.config['SECRET_KEY'], expires_in=expiration)
-        session_number = self.new_user_session()
-        cache_id = self.new_user_cache()
-
-        print("Cache is  {}".format(cache_id))
-        return s.dumps({'id': self.id, 'session': session_number, 'cache_id': cache_id})
 
     @staticmethod
     def verify_auth_token(token):
@@ -172,34 +187,32 @@ class User(UserMixin, db.Model):
             return None  # valid token, but expired
         except BadSignature:
             print("Bad Signature")
-            return False  # invalid token
+            return None  # invalid token
         user = User.query.get(data['id'])
         if user:
             token_session = data['session']
             if token_session == user.current_session_user:
                 return user
             else:
-                print("Session does not match, generate new token")
+                print("Session does not match for user {}, generate new token".format(user.id))
                 return None
         else:
             return False
 
-    def new_user_session(self):
-        current_session = self.current_session_user
-        new_session = current_session + 1
-        self.current_session_user = new_session
-        self.last_session_user = current_session
-        db.session.commit()
-        return new_session
-
-    def new_user_cache(self):
-        new_cache = UserCache()
-        self.caches.append(new_cache)
-        new_cache_id = new_cache.cache_id
-        db.session.add(new_cache)
-        db.session.commit()
-        return new_cache_id
-
+    @staticmethod
+    def current_cache_from_token(token):
+        s = Serializer(app.config['SECRET_KEY'])
+        try:
+            data = s.loads(token)
+        except SignatureExpired:
+            return None  # valid token, but expired
+        except BadSignature:
+            print("Bad Signature")
+            return None  # invalid token
+        user = User.query.get(data['id'])
+        if user:
+            user_token_cache = data.get('cache_id', None)
+            return user_token_cache
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
@@ -264,6 +277,8 @@ def load_user_from_request(request):
             return None
 
     # finally, return None if both methods did not login the user
+    else:
+        return None
     return None
 
 
@@ -349,13 +364,16 @@ def list():
         return render_template("list.html", rows=[LinkedInRecord.query.filter_by(member_id=cur.member_id).first() for
                                                   cur in current_user.records])
 
+
 @app.route('/fetch', methods=['GET'])
 @login_required
 def fetch_user_caches_view():
-    user_caches = current_user.caches
-    user_caches_ids = [uc.cache_id for uc in user_caches]
-    user_caches_dt = [uc.created for uc in user_caches]
-    user_caches_counts = [len(uc.cached) for uc in user_caches]
+    current_user_id = current_user.id
+    user = User.query.filter_by(id=current_user_id).first()
+    users_caches = user.caches
+    user_caches_ids = [uc.cache_id for uc in users_caches]
+    user_caches_dt = [uc.created for uc in users_caches]
+    user_caches_counts = [len(uc.profiles) for uc in users_caches]
     user_caches_v = [(c, d) for c, d in zip(user_caches_counts, user_caches_dt)]
     cache_data = dict(zip(user_caches_ids, user_caches_v))
 
@@ -405,10 +423,12 @@ def get_auth_token():
 
     user = load_user_from_request(request)
     if user:
-        token = user.generate_auth_token()
+        token = update_user_token(user)
         return jsonify({'token': token.decode('ascii')})
     else:
+        print("User not found from token")
         return abort(401)
+
 
 
 @app.route('/api/v1/test_token', methods=['GET'])
@@ -423,6 +443,7 @@ def profile():
 
     if not request.json:
         abort(400)
+        print("Request not JSON")
 
     data = request.json
     parsed_data = LinkedInProfile(data)
@@ -436,23 +457,28 @@ def profile():
     # Check if record already exists
 
     matched_records = LinkedInRecord.query.filter_by(member_id=profile_record.member_id).first()
-    print(matched_records)
 
     if matched_records:
         print("Handled update")
-        profile_record = handle_update(profile_record, user_id)
-    else:
-        profile_record.from_users = str(user_id) + "_"
+        profile_record = handle_update(profile_record)
 
-    # Add the member id to the user's most recent cache
+    # Done with record, add it to session
+    db.session.add(profile_record)
 
-    user_current_cache = user_from_api.caches[-1]
-    user_current_cache.append_cache(parsed_data.member_id)
+    # Create association with record and User
     user_from_api.records.append(profile_record)
 
-    db.session.add(profile_record)
-    db.session.commit()
+    # Get the cache referred to in token
+    api_key = request.headers.get('Api-Key')
+    user_current_cache_id = User.current_cache_from_token(api_key)
+    user_current_cache = user_from_api.caches.filter(UserCache.cache_id == user_current_cache_id).first()
 
+    # Create association with the record and Cache
+    user_current_cache.profiles.append(profile_record)
+
+    # Cache is modified add it to session
+    db.session.add(user_current_cache)
+    db.session.commit()
     # Form to JSON and reply with it
 
     return jsonify({'action': 'success'}), 201
@@ -469,23 +495,37 @@ def prune():
     def prune_record(lookup_result):
         created_date = lookup_result.created
         if created_date is None:
-            return True
+            return True  # incomplete record, get it
         if (date.today() - created_date).days >= profile_pruner.RECORD_IS_OLD:
-            return True
+            return True  # old record, get it
         else:
-            return False
+            return False  # don't get it
 
     for k, v in profile_pruner.reference.items():
         member_id = v['member_id']
+        print("Searching for {}".format(member_id))
         lookup_result = LinkedInRecord.query.filter_by(member_id=member_id).first()
+        print("Found {}".format(lookup_result))
         if lookup_result:
             if prune_record(lookup_result) is False:
+                print("We have {} in database".format(lookup_result))
+                # We don't want to fetch it
+                # But we want to create association
                 user_from_api = load_user_from_request(request)
-                user_current_cache = user_from_api.caches[-1]
-                user_current_cache.append_cache(lookup_result)
-                user_from_api.records.append(lookup_result)
+                api_key = request.headers.get('Api-Key')
+                user_current_cache_id = User.current_cache_from_token(api_key)
+                print("Users cache_id from token is {}".format(user_current_cache_id))
+                user_current_cache = user_from_api.caches.filter(UserCache.cache_id == user_current_cache_id).first()
+                print("Found this cache {}".format(user_current_cache))
+
+                # Create association with the record and Cache
+                user_current_cache.profiles.append(lookup_result)
+
+                # Cache is modified, add it to session
                 db.session.add(user_current_cache)
-                db.session.add(user_from_api)
+                db.session.commit()
+
+                # Remove the url from the response
                 profile_pruner.reference[k] = False
 
     for k, v in profile_pruner.reference.items():
@@ -508,7 +548,7 @@ def format_results(record):
     return holder
 
 
-def handle_update(profile_record, user_id):
+def handle_update(profile_record):
 
     # Fetch the record that is a duplicate
 
@@ -516,7 +556,7 @@ def handle_update(profile_record, user_id):
 
     record_keys = profile_record.__dict__.keys()
     for key in record_keys:
-        if key[0] == '_' or key == 'from_users' or key == 'updated':  # These will never be equal, internal key
+        if key[0] == '_' or key == 'updated':  # These will never be equal, internal key
             continue
         try:
             old_value = getattr(old_record, key)
