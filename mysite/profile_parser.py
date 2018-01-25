@@ -88,7 +88,6 @@ class LinkedInProfile(object):
         return parsed_date
 
     def date_logic_helper(self, pos_dict, index):
-        # Should always have begin date
 
         startYearString = 'startDateYear_{}'.format(index)
         startMonthString = 'startDateMonth_{}'.format(index)
@@ -100,7 +99,11 @@ class LinkedInProfile(object):
 
         # Replace seperate year, month keys with one
         # Start dates
-        pos_dict.pop(startYearString)
+        if start_date_year is False:
+            # Software for the ages... :)
+            start_date_year = int(date.today().strftime("%Y"))
+        else:
+            pos_dict.pop(startYearString)
 
         # Month may not be present
         if start_date_month is False:
