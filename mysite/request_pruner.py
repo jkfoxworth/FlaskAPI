@@ -11,6 +11,12 @@ class ProfilePruner(object):
         self.pruned_urls = []
         self.generate_keys()
 
+    def __len__(self):
+        return len(self.request_urls)
+
+    def __str__(self):
+        return "ProfilePruner with {} urls".format(len(self.request_urls))
+
     def generate_keys(self):
         ref_dict = {}
         for index, u in enumerate(self.request_urls):

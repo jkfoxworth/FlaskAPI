@@ -6,4 +6,5 @@
 /.gitignore
 *.json
 /scripts/*.py
+*.pkl
 

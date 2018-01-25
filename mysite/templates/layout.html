@@ -29,8 +29,7 @@
         {% if current_user.is_authenticated %}
         <li><a href="/profiles">ACCESS RECORDS</a></li>
         <li><a href="/search">SEARCH RECORDS</a></li>
-        <li><a href="/fetch">MY EXTRACTS</a></li>
-        <li><a href="/extension">DOWNLOAD EXTENSION</a></li>
+        <li><a href="/fetch">DOWNLOADS</a></li>
           <li><a href="{{ url_for('logout') }}">LOG OUT</a></li>
 
           {% else %}
