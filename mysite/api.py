@@ -427,7 +427,7 @@ def file_manager():
     user_files = []
     for uc in users_caches:
         # Get count just once, expensive. If 0, skip it
-        uc_count = uc.profiles.count()
+        uc_count = len(uc.profiles)
         if uc_count == 0:
             # Remove files with 0 records that aren't from today
             if uc.created.date() != date.today():
@@ -435,6 +435,7 @@ def file_manager():
         td = (uc.cache_id, uc.friendly_id, uc_count, uc.created)
         user_files.append(td)
     user_files = sorted(user_files, key=itemgetter(3))
+    return render_template('file_manager.html', user_files=user_files)
 
     # TODO Template
 
