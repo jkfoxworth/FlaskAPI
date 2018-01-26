@@ -16,6 +16,7 @@ from itsdangerous import (TimedJSONWebSignatureSerializer
 from functools import wraps
 import base64
 import csv_parser
+from operator import itemgetter
 
 
 app = Flask(__name__)
@@ -416,6 +417,29 @@ def serve_file(cache_id):
     csv_text = csv_parser.db_to_csv(data)
     return Response(csv_text, mimetype="text/csv",
                     headers={"Content-disposition": "attachment; filename={}.csv".format(cache_id)})
+
+@app.route('/manage/files', methods=['GET'])
+@login_required
+def file_manager():
+    user = User.query.filter_by(id=current_user.id).first()
+    users_caches = user.caches
+    # TODO match this pattern to /fetch
+    user_files = []
+    for uc in users_caches:
+        # Get count just once, expensive. If 0, skip it
+        uc_count = uc.profiles.count()
+        if uc_count == 0:
+            # Remove files with 0 records that aren't from today
+            if uc.created.date() != date.today():
+                continue
+        td = (uc.cache_id, uc.friendly_id, uc_count, uc.created)
+        user_files.append(td)
+    user_files = sorted(user_files, key=itemgetter(3))
+
+    # TODO Template
+
+
+
 
 
 @app.route('/api/v1/token', methods=['POST'])
