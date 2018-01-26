@@ -8,3 +8,4 @@
 /scripts/*.py
 *.pkl
 
+!/mysite/country_codes.pkl
