@@ -18,6 +18,7 @@ import base64
 import csv_parser
 from operator import itemgetter
 from flask_debugtoolbar import DebugToolbarExtension
+import string
 
 app = Flask(__name__)
 app.config['DEBUG'] = AppConfiguration.debug
@@ -370,16 +371,21 @@ def list():
 @app.route('/fetch', methods=['GET'])
 @login_required
 def fetch_user_caches_view():
-    current_user_id = current_user.id
-    user = User.query.filter_by(id=current_user_id).first()
+    user = User.query.filter_by(id=current_user.id).first()
     users_caches = user.caches
-    user_caches_ids = [uc.cache_id for uc in users_caches]
-    user_caches_dt = [uc.created for uc in users_caches]
-    user_caches_counts = [len(uc.profiles) for uc in users_caches]
-    user_caches_v = [(c, d) for c, d in zip(user_caches_counts, user_caches_dt)]
-    cache_data = dict(zip(user_caches_ids, user_caches_v))
+    user_files = []
+    for uc in users_caches:
+        # Get count just once, expensive. If 0, skip it
+        uc_count = len(uc.profiles)
+        if uc_count == 0:
+            # Remove files with 0 records that aren't from today
+            if uc.created.date() != date.today():
+                continue
+        td = (uc.cache_id, uc.friendly_id, uc_count, uc.created)
+        user_files.append(td)
+    user_files = sorted(user_files, key=itemgetter(3))
 
-    return render_template('cache_list.html', cache_data=cache_data)
+    return render_template('cache_list.html', user_files=user_files)
 
 
 @app.route('/download/<cache_id>', methods=['GET'])
@@ -398,6 +404,10 @@ def serve_file(cache_id):
     if cache_id not in user_caches_ids:
         abort(400)
     fetched_cache = UserCache.query.filter_by(cache_id=cache_id).first()
+    if fetched_cache.friendly_id:
+        cache_file_name = fetched_cache.friendly_id
+    else:
+        cache_file_name = fetched_cache.cache_id
     cached_data = fetched_cache.profiles
     data = []
 
@@ -417,14 +427,13 @@ def serve_file(cache_id):
 
     csv_text = csv_parser.db_to_csv(data)
     return Response(csv_text, mimetype="text/csv",
-                    headers={"Content-disposition": "attachment; filename={}.csv".format(cache_id)})
+                    headers={"Content-disposition": "attachment; filename={}.csv".format(cache_file_name)})
 
 @app.route('/manage/files', methods=['GET'])
 @login_required
 def file_manager():
     user = User.query.filter_by(id=current_user.id).first()
     users_caches = user.caches
-    # TODO match this pattern to /fetch
     user_files = []
     for uc in users_caches:
         # Get count just once, expensive. If 0, skip it
@@ -445,28 +454,25 @@ def file_rename():
     user = User.query.filter_by(id=current_user.id).first()
     file_name = request.form.get('file_name')
     file_new_name = request.form.get('new_name')
+    for char in string.punctuation:
+        if char in file_new_name:
+            return redirect(url_for('file_manager', code="error"))
 
     # Locate the file referenced
     user_file = UserCache.query.join(User).filter(User.id == user.id).filter(UserCache.cache_id == file_name).first()
-    if user_file is None:
+    if user_file:
+        pass
+    else:
         user_file = UserCache.query.join(User).filter(User.id == user.id).filter(UserCache.friendly_id == file_name).first()
-        if user_file is None:
+        if user_file:
+            pass
+        else:
             return redirect(url_for('file_manager', code="error"))
 
     user_file.friendly_id = file_new_name
     db.session.add(user_file)
     db.session.commit()
     return redirect(url_for('file_manager', code="success"))
-
-
-
-
-
-
-
-
-
-
 
 @app.route('/api/v1/token', methods=['POST'])
 def get_auth_token():

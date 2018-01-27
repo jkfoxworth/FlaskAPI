@@ -21,7 +21,7 @@
     <form action="/manage/files/rename" method="POST" class="form-inline">
         <div class="form-group">
             <label for="file_name">Select File</label>
-            <select class="form-control" id="file_name" name="file_id">
+            <select class="form-control" id="file_name" name="file_name">
                 {% for uf in user_files %}
 
                 {% if uf[1] == None %}
