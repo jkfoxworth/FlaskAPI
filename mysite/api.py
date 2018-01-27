@@ -17,7 +17,7 @@ from functools import wraps
 import base64
 import csv_parser
 from operator import itemgetter
-
+from flask_debugtoolbar import DebugToolbarExtension
 
 app = Flask(__name__)
 app.config['DEBUG'] = AppConfiguration.debug
@@ -31,6 +31,7 @@ app.secret_key = AppConfiguration.secret_key
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = AppConfiguration.login_view
+toolbar = DebugToolbarExtension(app)
 
 # Data Models
 
@@ -435,9 +436,33 @@ def file_manager():
         td = (uc.cache_id, uc.friendly_id, uc_count, uc.created)
         user_files.append(td)
     user_files = sorted(user_files, key=itemgetter(3))
-    return render_template('file_manager.html', user_files=user_files)
 
-    # TODO Template
+    return render_template('file_manager.html', user_files=user_files, code=request.args.get('code'))
+
+@app.route('/manage/files/rename', methods=['POST'])
+@login_required
+def file_rename():
+    user = User.query.filter_by(id=current_user.id).first()
+    file_name = request.form.get('file_name')
+    file_new_name = request.form.get('new_name')
+
+    # Locate the file referenced
+    user_file = UserCache.query.join(User).filter(User.id == user.id).filter(UserCache.cache_id == file_name).first()
+    if user_file is None:
+        user_file = UserCache.query.join(User).filter(User.id == user.id).filter(UserCache.friendly_id == file_name).first()
+        if user_file is None:
+            return redirect(url_for('file_manager', code="error"))
+
+    user_file.friendly_id = file_new_name
+    db.session.add(user_file)
+    db.session.commit()
+    return redirect(url_for('file_manager', code="success"))
+
+
+
+
+
+
 
 
 
