@@ -4,16 +4,20 @@
 <div class="container-fluid text-center">
 <table class="table">
  <tr class="bg-grey">
+     <th class="text-center">File ID</th>
      <th class="text-center">File Name</th>
      <th class="text-center">Record Count</th>
      <th class="text-center">Created Date</th>
  </tr>
 
- {% for k, v in cache_data.items() %}
+ {% for uf in user_files %}
     <tr>
-        {% set display_time = v[1].strftime('%b %d %Y at %I:%M %p') %}
-        {% set record_count = v[0] %}
-        <td><a href="/download/{{k}}">{{k}}</a></td>
+        {% set display_time = uf[3].strftime('%b %d %Y at %I:%M %p') %}
+        {% set record_count = uf[2] %}
+        {% set friendly_id = uf[1] %}
+        {% set file_id = uf[0] %}
+        <td><a href="/download/{{file_id}}">{{file_id}}</a></td>
+        <td>{{friendly_id}}</td>
         <td>{{record_count}}</td>
         <td>{{display_time}}</td>
     </tr>

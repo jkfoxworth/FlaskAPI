@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="container-fluid text-center">
+    <h2>File Manager</h2>
+    <p>Rename your files to something easier to remember!</p>
+
+    {% if code == 'error' %}
+    <div class="alert alert-warning" role="alert">
+        Error renaming file
+    </div>
+
+    {% elif code == 'success' %}
+    <div class="alert alert-success" role="alert">
+        File Renamed!
+    </div>
+    {% else %}
+    {% endif %}
+
+    <form action="/manage/files/rename" method="POST" class="form-inline">
+        <div class="form-group">
+            <label for="file_name">Select File</label>
+            <select class="form-control" id="file_name" name="file_name">
+                {% for uf in user_files %}
+
+                {% if uf[1] == None %}
+                {% set file_name = uf[0] %}
+                {% else %}
+                {% set file_name = uf[1] %}
+                {% endif %}
+                <option>{{file_name}}</option>
+
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="new_name">Rename To...</label>
+            <input type="text" class="form-control" id="new_name" name="new_name">
+        </div>
+
+        <button type="submit" class="button btn-default">Submit</button>
+    </form>
+</div>
+
+
+{% endblock %}
