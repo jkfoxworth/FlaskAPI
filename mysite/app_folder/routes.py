@@ -1,229 +1,14 @@
-import sys
-sys.path.append('mysite')
-from app_config import AppConfiguration
-from flask import Flask, render_template, redirect, url_for, request, abort, jsonify, Response
-from profile_parser import LinkedInProfile
-from request_pruner import ProfilePruner
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from flask_login import login_user, LoginManager, UserMixin, login_required, logout_user, current_user
-from werkzeug.security import check_password_hash
-from datetime import datetime, date
-import random
-from string import ascii_letters
+from app_folder import app_run, db, login, csv_parser, profile_parser
+from app_folder.models import User, LinkedInRecord, UserCache
+from flask import render_template, redirect, url_for, request, abort, jsonify, Response
+from flask_login import login_user, current_user, logout_user, login_required
 from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer, BadSignature, SignatureExpired)
 from functools import wraps
 import base64
-import csv_parser
+from datetime import date
 from operator import itemgetter
-from flask_debugtoolbar import DebugToolbarExtension
 import string
-
-app = Flask(__name__)
-app.config['DEBUG'] = AppConfiguration.debug
-for k, v in AppConfiguration.db_values.items():
-    app.config[k] = v
-db = SQLAlchemy(app)
-if AppConfiguration.create_all is True:
-    db.create_all()
-migrate = Migrate(app, db)
-app.secret_key = AppConfiguration.secret_key
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = AppConfiguration.login_view
-toolbar = DebugToolbarExtension(app)
-
-# Data Models
-
-# Maps User to their associated records
-
-User_Records = db.Table('User_Records',
-                        db.Column('user_id', db.Integer, db.ForeignKey('Users.id'), primary_key=True),
-                        db.Column('member_id', db.Integer, db.ForeignKey('Profiles.member_id'), primary_key=True)
-                        )
-
-Cache_Records = db.Table('Cache_Records',
-                         db.Column('cache_id', db.String(16), db.ForeignKey('UserCache.cache_id'), primary_key=True),
-                         db.Column('member_id', db.Integer, db.ForeignKey('Profiles.member_id'), primary_key=True)
-                         )
-
-
-def generate_auth_token(user_id, session_number, cache_id, expiration=86400):
-    s = Serializer(app.config['SECRET_KEY'], expires_in=expiration)
-    return s.dumps({'id': user_id, 'session': session_number, 'cache_id': cache_id})
-
-def update_user_token(user):
-    current_session = user.current_session_user
-    new_session = current_session + 1
-    # Increment session number
-    user.current_session_user = new_session
-    # Create a new Cache and append to user's caches
-    new_cache = UserCache()
-    cache_name = new_cache.cache_id
-    user_id_ = user.id
-    user.caches.append(new_cache)
-    db.session.add(user)
-    db.session.commit()
-    auth_token = generate_auth_token(user_id_, new_session, cache_name)
-    return auth_token
-
-
-class LinkedInRecord(db.Model):
-    """
-    DB Model for Profile Data
-    """
-    __tablename__ = 'Profiles'
-    member_id = db.Column(db.Integer, primary_key=True)
-    first_name = db.Column(db.String(128))
-    last_name = db.Column(db.String(128))
-    summary = db.Column(db.Text)
-
-    metro = db.Column(db.Text)
-    postal_code = db.Column(db.Text)
-    country_code = db.Column(db.Text)
-    language = db.Column(db.Text)
-    industry = db.Column(db.Text)
-    skills = db.Column(db.Text)
-
-    companyName_0 = db.Column(db.Text)
-    companyUrl_0 = db.Column(db.Text)
-    title_0 = db.Column(db.Text)
-    start_date_0 = db.Column(db.Date)
-    end_date_0 = db.Column(db.Date)
-    summary_0 = db.Column(db.Text)
-
-    companyName_1 = db.Column(db.Text)
-    companyUrl_1 = db.Column(db.Text)
-    title_1 = db.Column(db.Text)
-    start_date_1 = db.Column(db.Date)
-    end_date_1 = db.Column(db.Date)
-    summary_1 = db.Column(db.Text)
-
-    companyName_2 = db.Column(db.Text)
-    companyUrl_2 = db.Column(db.Text)
-    title_2 = db.Column(db.Text)
-    start_date_2 = db.Column(db.Date)
-    end_date_2 = db.Column(db.Date)
-    summary_2 = db.Column(db.Text)
-
-    created = db.Column(db.Date, default=date.today())
-    updated = db.Column(db.Date, default=None)
-
-    education_school = db.Column(db.Text)
-    education_start = db.Column(db.Date)
-    education_end = db.Column(db.Date)
-    education_degree = db.Column(db.Text)
-    education_study_field = db.Column(db.Text)
-    public_url = db.Column(db.Text)
-    recruiter_url = db.Column(db.Text)
-
-    def __init__(self, LinkedInProfile):
-        """
-        :param LinkedInProfile:
-        """
-        for k, v in LinkedInProfile.__dict__.items():
-            if k[0] == '_': # Include or exclude properties based on _prop naming convetion
-                continue
-            try:
-                setattr(self, k, v)
-            except AttributeError:
-                self._set_entry(k, v)
-
-    def _set_entry(self, k, v):
-        # Handles if Table object is intended to be internal
-        k_ = "_" + k
-        setattr(self, k_, v)
-
-
-class UserCache(db.Model):
-    """
-    DB Model that holds member IDs in cached. Relationship with User (1) to many
-    """
-    __tablename__ = "UserCache"
-    cache_id = db.Column(db.String(16), primary_key=True)
-    friendly_id = db.Column(db.Text)
-    # We want a backref here so that any updates to user as well as UserCache are reflected on both ends
-    user_id = db.Column(db.Integer, db.ForeignKey('Users.id'))
-    profiles = db.relationship('LinkedInRecord', secondary=Cache_Records, lazy=True,
-                               backref=db.backref('caches', lazy=True))
-    created = db.Column(db.DateTime, default=datetime.now())
-
-    def __init__(self):
-        self.cache_id = self.generate_string
-
-    @property
-    def generate_string(self):
-        """
-
-        :return: Random ascii letters (string)
-        """
-        l = ascii_letters
-        holder = []
-        for i in range(16):
-            holder.append(l[random.randrange(0, len(l))])
-        return ''.join(holder)
-
-
-class User(UserMixin, db.Model):
-
-    __tablename__ = "Users"
-
-    id = db.Column(db.Integer, primary_key=True)
-    user_type = db.Column(db.Text, default='normal')
-    username = db.Column(db.String(128))
-    password_hash = db.Column(db.Text)
-    api_key = db.Column(db.Text)
-    current_session_user = db.Column(db.Integer, default=0)
-    caches = db.relationship('UserCache', backref='user', lazy='dynamic')
-    records = db.relationship('LinkedInRecord', secondary=User_Records, lazy=True,
-                              backref=db.backref('users', lazy=True))
-    # Generating a random key to return to Extension after login success
-
-    @staticmethod
-    def verify_auth_token(token):
-        s = Serializer(app.config['SECRET_KEY'])
-        try:
-            data = s.loads(token)
-        except SignatureExpired:
-            print("Expired Token")
-            return None  # valid token, but expired
-        except BadSignature:
-            print("Bad Signature")
-            return None  # invalid token
-        user = User.query.get(data['id'])
-        if user:
-            token_session = data['session']
-            if token_session == user.current_session_user:
-                return user
-            else:
-                print("Session does not match for user {}, generate new token".format(user.id))
-                return None
-        else:
-            return False
-
-    @staticmethod
-    def current_cache_from_token(token):
-        s = Serializer(app.config['SECRET_KEY'])
-        try:
-            data = s.loads(token)
-        except SignatureExpired:
-            return None  # valid token, but expired
-        except BadSignature:
-            print("Bad Signature")
-            return None  # invalid token
-        user = User.query.get(data['id'])
-        if user:
-            user_token_cache = data.get('cache_id', None)
-            return user_token_cache
-
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-
-    def get_id(self):
-        return self.username
-
-# Wrappers
 
 
 def requires_key(func):
@@ -242,12 +27,33 @@ def requires_key(func):
     return wrapped
 
 
-@login_manager.user_loader
+def generate_auth_token(user_id, session_number, cache_id, expiration=86400):
+    s = Serializer(app_run.config['SECRET_KEY'], expires_in=expiration)
+    return s.dumps({'id': user_id, 'session': session_number, 'cache_id': cache_id})
+
+
+def update_user_token(user):
+    current_session = user.current_session_user
+    new_session = current_session + 1
+    # Increment session number
+    user.current_session_user = new_session
+    # Create a new Cache and append to user's caches
+    new_cache = UserCache()
+    cache_name = new_cache.cache_id
+    user_id_ = user.id
+    user.caches.append(new_cache)
+    db.session.add(user)
+    db.session.commit()
+    auth_token = generate_auth_token(user_id_, new_session, cache_name)
+    return auth_token
+
+
+@login.user_loader
 def load_user(user_id):
     return User.query.filter_by(username=user_id).first()
 
 
-@login_manager.request_loader
+@login.request_loader
 def load_user_from_request(request):
 
     # first, try to login using the api_key url arg
@@ -285,12 +91,12 @@ def load_user_from_request(request):
     return None
 
 
-@app.route('/', methods=['GET', 'POST'])
+@app_run.route('/', methods=['GET', 'POST'])
 def index():
     return render_template('welcome.html')
 
 
-@app.route('/login/', methods=['GET', 'POST'])
+@app_run.route('/login/', methods=['GET', 'POST'])
 def login():
     if request.method == "GET":
         return render_template("login_page.html", error=False)
@@ -306,7 +112,7 @@ def login():
     return redirect(url_for('index'))
 
 
-@app.route('/search', methods=['GET', 'POST'])
+@app_run.route('/search', methods=['GET', 'POST'])
 @login_required
 def search():
 
@@ -351,14 +157,14 @@ def search():
             return render_template('search.html', success='False')
 
 
-@app.route("/logout/")
+@app_run.route("/logout/")
 @login_required
 def logout():
     logout_user()
     return redirect(url_for('index'))
 
 
-@app.route('/profiles', methods=['GET'])
+@app_run.route('/profiles', methods=['GET'])
 @login_required
 def list():
     if current_user.user_type == 'admin':
@@ -368,7 +174,7 @@ def list():
                                                   cur in current_user.records])
 
 
-@app.route('/fetch', methods=['GET'])
+@app_run.route('/fetch', methods=['GET'])
 @login_required
 def fetch_user_caches_view():
     user = User.query.filter_by(id=current_user.id).first()
@@ -388,7 +194,7 @@ def fetch_user_caches_view():
     return render_template('cache_list.html', user_files=user_files)
 
 
-@app.route('/download/<cache_id>', methods=['GET'])
+@app_run.route('/download/<cache_id>', methods=['GET'])
 @login_required
 def serve_file(cache_id):
 
@@ -429,7 +235,7 @@ def serve_file(cache_id):
     return Response(csv_text, mimetype="text/csv",
                     headers={"Content-disposition": "attachment; filename={}.csv".format(cache_file_name)})
 
-@app.route('/manage/files', methods=['GET'])
+@app_run.route('/manage/files', methods=['GET'])
 @login_required
 def file_manager():
     user = User.query.filter_by(id=current_user.id).first()
@@ -448,7 +254,7 @@ def file_manager():
 
     return render_template('file_manager.html', user_files=user_files, code=request.args.get('code'))
 
-@app.route('/manage/files/rename', methods=['POST'])
+@app_run.route('/manage/files/rename', methods=['POST'])
 @login_required
 def file_rename():
     user = User.query.filter_by(id=current_user.id).first()
@@ -474,7 +280,7 @@ def file_rename():
     db.session.commit()
     return redirect(url_for('file_manager', code="success"))
 
-@app.route('/api/v1/token', methods=['POST'])
+@app_run.route('/api/v1/token', methods=['POST'])
 def get_auth_token():
 
     user = load_user_from_request(request)
@@ -487,13 +293,13 @@ def get_auth_token():
 
 
 
-@app.route('/api/v1/test_token', methods=['GET'])
+@app_run.route('/api/v1/test_token', methods=['GET'])
 @requires_key
 def t():
     return jsonify({'message': 'valid token'})
 
 
-@app.route('/api/v1/profiles', methods=['POST'])
+@app_run.route('/api/v1/profiles', methods=['POST'])
 @requires_key
 def profile():
 
@@ -502,7 +308,7 @@ def profile():
         print("Request not JSON")
 
     data = request.json
-    parsed_data = LinkedInProfile(data)
+    parsed_data = profile_parser.LinkedInProfile(data)
     profile_record = LinkedInRecord(parsed_data)
 
     # Get user id to associate to the record
@@ -540,12 +346,12 @@ def profile():
     return jsonify({'action': 'success'}), 201
 
 
-@app.route('/api/v1/prune', methods=['POST'])
+@app_run.route('/api/v1/prune', methods=['POST'])
 @requires_key
 def prune():
     data = request.json['data']
 
-    profile_pruner = ProfilePruner(data)
+    profile_pruner = csv_parser.ProfilePruner(data)
     pruned_urls = []
 
     def prune_record(lookup_result):
@@ -623,10 +429,5 @@ def handle_update(profile_record):
         if old_value != new_value:
             setattr(old_record, key, new_value)
 
-        old_record.__dict__[k] = v
     old_record.updated = date.today()
     return old_record
-
-
-if __name__ == '__main__':
-    app.run()
