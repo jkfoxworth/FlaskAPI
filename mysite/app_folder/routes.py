@@ -235,6 +235,7 @@ def serve_file(cache_id):
     return Response(csv_text, mimetype="text/csv",
                     headers={"Content-disposition": "attachment; filename={}.csv".format(cache_file_name)})
 
+
 @app_run.route('/manage/files', methods=['GET'])
 @login_required
 def file_manager():
@@ -254,15 +255,16 @@ def file_manager():
 
     return render_template('file_manager.html', user_files=user_files, code=request.args.get('code'))
 
+
 @app_run.route('/manage/files/rename', methods=['POST'])
 @login_required
 def file_rename():
     user = User.query.filter_by(id=current_user.id).first()
     file_name = request.form.get('file_name')
     file_new_name = request.form.get('new_name')
-    for char in string.punctuation:
-        if char in file_new_name:
-            return redirect(url_for('file_manager', code="error"))
+
+    allowchar = [' ', '_']
+    file_new_name = "".join([c for c in file_new_name if c.isalnum() or c in allowchar]).rstrip()
 
     # Locate the file referenced
     user_file = UserCache.query.join(User).filter(User.id == user.id).filter(UserCache.cache_id == file_name).first()
@@ -280,6 +282,7 @@ def file_rename():
     db.session.commit()
     return redirect(url_for('file_manager', code="success"))
 
+
 @app_run.route('/api/v1/token', methods=['POST'])
 def get_auth_token():
 
@@ -290,7 +293,6 @@ def get_auth_token():
     else:
         print("User not found from token")
         return abort(401)
-
 
 
 @app_run.route('/api/v1/test_token', methods=['GET'])
