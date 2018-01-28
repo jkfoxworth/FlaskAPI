@@ -1,5 +1,5 @@
 
-/mysite/profiles.sqlite3
+
 /venv/
 /test_html.txt
 /test_profile.html
@@ -7,5 +7,5 @@
 *.json
 /scripts/*.py
 *.pkl
-
 !/mysite/country_codes.pkl
+/mysite/app.db
