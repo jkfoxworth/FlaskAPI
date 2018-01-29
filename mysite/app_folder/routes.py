@@ -232,8 +232,10 @@ def serve_file(cache_id):
         data.append(row2dict(prof))
 
     csv_text = csv_parser.db_to_csv(data)
+    csv_text = "\uFEFF" + csv_text
     return Response(csv_text, mimetype="text/csv",
-                    headers={"Content-disposition": "attachment; filename={}.csv".format(cache_file_name)})
+                    headers={"Content-disposition": "attachment; filename={}.csv".format(cache_file_name),
+                             'charset': 'utf-8'})
 
 
 @app_run.route('/manage/files', methods=['GET'])
