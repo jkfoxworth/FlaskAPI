@@ -11,6 +11,7 @@ from itsdangerous import (TimedJSONWebSignatureSerializer
 # Login checking can be done here
 # Classes Here
 
+
 @login.user_loader
 def load_user(id):
     return User.query.get(int(id))
@@ -25,6 +26,7 @@ Cache_Records = db.Table('Cache_Records',
                          db.Column('cache_id', db.String(16), db.ForeignKey('UserCache.cache_id'), primary_key=True),
                          db.Column('member_id', db.Integer, db.ForeignKey('Profiles.member_id'), primary_key=True)
                          )
+
 
 class LinkedInRecord(db.Model):
     """
@@ -99,6 +101,7 @@ class UserCache(db.Model):
     """
     __tablename__ = "UserCache"
     cache_id = db.Column(db.String(16), primary_key=True)
+    active = db.Column(db.Boolean, default=False)
     friendly_id = db.Column(db.Text)
     # We want a backref here so that any updates to user as well as UserCache are reflected on both ends
     user_id = db.Column(db.Integer, db.ForeignKey('Users.id'))
@@ -158,21 +161,6 @@ class User(UserMixin, db.Model):
                 return None
         else:
             return False
-
-    @staticmethod
-    def current_cache_from_token(token):
-        s = Serializer(app_run.config['SECRET_KEY'])
-        try:
-            data = s.loads(token)
-        except SignatureExpired:
-            return None  # valid token, but expired
-        except BadSignature:
-            print("Bad Signature")
-            return None  # invalid token
-        user = User.query.get(data['id'])
-        if user:
-            user_token_cache = data.get('cache_id', None)
-            return user_token_cache
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
