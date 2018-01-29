@@ -8,6 +8,7 @@
      <th class="text-center">File Name</th>
      <th class="text-center">Record Count</th>
      <th class="text-center">Created Date</th>
+     <th class="text-center">Active?</th>
  </tr>
 
  {% for uf in user_files %}
@@ -16,10 +17,12 @@
         {% set record_count = uf[2] %}
         {% set friendly_id = uf[1] %}
         {% set file_id = uf[0] %}
+        {% set active_status = uf[4] %}
         <td><a href="/download/{{file_id}}">{{file_id}}</a></td>
         <td>{{friendly_id}}</td>
         <td>{{record_count}}</td>
         <td>{{display_time}}</td>
+        <td>{{active_status}}</td>
     </tr>
  {% endfor %}
 </table>

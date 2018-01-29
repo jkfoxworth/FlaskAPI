@@ -4,22 +4,55 @@
 
 <div class="container-fluid text-center">
     <h2>File Manager</h2>
+
+    {% if category == 'rename' %}
     <p>Rename your files to something easier to remember!</p>
 
-    {% if code == 'error' %}
+    {% elif category == 'new_file' %}
+    <p>Start extracting to a new file!</p>
+
+    {% elif category == 'set_active' %}
+    <p>Start extracting to an existing file!</p>
+
+    {% endif %}
+
+    {% if code == 'error_rename' %}
     <div class="alert alert-warning" role="alert">
         Error renaming file
     </div>
 
-    {% elif code == 'success' %}
+    {% elif code == 'success_rename' %}
     <div class="alert alert-success" role="alert">
         File Renamed!
+    </div>
+
+    {% elif code == 'success_new' %}
+    <div class="alert alert-success" role="alert">
+        File Created And Active!
+    </div>
+
+    {% elif code == 'error_new' %}
+    <div class="alert alert-warning" role="alert">
+        Error creating file
+    </div>
+
+    {% elif code == 'error_set' %}
+    <div class="alert alert-warning" role="alert">
+        Error setting active file
+    </div>
+
+    {% elif code == 'success_set' %}
+    <div class="alert alert-success" role="alert">
+        Active file set!
     </div>
     {% else %}
     {% endif %}
 
-    <form action="/manage/files/rename" method="POST" class="form-inline">
+    <form action="/manage/files/{{category}}/do" method="POST" class="form-inline">
+        {% if category == 'rename' or category == 'set_active' %}
         <div class="form-group">
+
+
             <label for="file_name">Select File</label>
             <select class="form-control" id="file_name" name="file_name">
                 {% for uf in user_files %}
@@ -34,13 +67,23 @@
                 {% endfor %}
             </select>
         </div>
-
+        {% endif %}
+        {% if category == 'rename' %}
         <div class="form-group">
             <label for="new_name">Rename To...</label>
             <input type="text" class="form-control" id="new_name" name="new_name">
         </div>
-
+        {% elif category == 'new' %}
+        <div class="form-group">
+            <label for="new_name">Name It...</label>
+            <input type="text" class="form-control" id="new_name" name="new_name">
+        </div>
+        {% endif %}
+        {% if category == 'set_active' %}
+        <button type="submit" class="button btn-default">Set Active</button>
+        {% else %}
         <button type="submit" class="button btn-default">Submit</button>
+        {% endif %}
     </form>
 </div>
 
