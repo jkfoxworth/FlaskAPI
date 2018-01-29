@@ -1,4 +1,4 @@
-from app_folder import app_run, db, login, csv_parser, profile_parser
+from app_folder import app_run, db, login, csv_parser, profile_parser, request_pruner
 from app_folder.models import User, LinkedInRecord, UserCache
 from flask import render_template, redirect, url_for, request, abort, jsonify, Response
 from flask_login import login_user, current_user, logout_user, login_required
@@ -355,7 +355,7 @@ def profile():
 def prune():
     data = request.json['data']
 
-    profile_pruner = csv_parser.ProfilePruner(data)
+    profile_pruner = request_pruner.ProfilePruner(data)
     pruned_urls = []
 
     def prune_record(lookup_result):
