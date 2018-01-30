@@ -28,6 +28,7 @@ def db_to_csv(data):
     df2['Work History - Company'] = df['companyName_2']
     df2['Work History - Position title'] = df['title_2']
     df2['Summary'] = df['summary']
+    df2['Website'] = df['public_url']
     df2['Base64-encoded attachment Name'] = df['member_id'] + ".rtf"
     df2['Base64-encoded attachment content'] = df.apply(make_resume, axis=1)
 

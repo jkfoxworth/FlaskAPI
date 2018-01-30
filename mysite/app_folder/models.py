@@ -169,4 +169,7 @@ class User(UserMixin, db.Model):
 
 @login.user_loader
 def load_user(id):
-    return User.query.get(int(id))
+    try:
+        return User.query.get(int(id))
+    except ValueError:
+        return User.query.filter_by(username=id)
