@@ -365,7 +365,6 @@ def get_auth_token():
 
 @app_run.route('/api/v1/test_token', methods=['GET'])
 @requires_key
-# TODO Return additional info such as selected file name
 def t():
     return jsonify({'message': 'valid token'})
 
@@ -486,7 +485,6 @@ def prune():
     db.session.commit()
     return jsonify({'data': pruned_urls}), 201
 
-# TODO Add Route for File Manager
 
 def format_results(record):
     holder = {}
