@@ -27,9 +27,9 @@ def requires_key(func):
     return wrapped
 
 
-def generate_auth_token(user_id, session_number, cache_id, expiration=86400):
+def generate_auth_token(user_id, session_number, expiration=86400):
     s = Serializer(app_run.config['SECRET_KEY'], expires_in=expiration)
-    return s.dumps({'id': user_id, 'session': session_number, 'cache_id': cache_id})
+    return s.dumps({'id': user_id, 'session': session_number})
 
 
 def update_user_token(user):
@@ -37,20 +37,12 @@ def update_user_token(user):
     new_session = current_session + 1
     # Increment session number
     user.current_session_user = new_session
-    # Create a new Cache and append to user's caches
-    new_cache = UserCache()
-    cache_name = new_cache.cache_id
     user_id_ = user.id
-    user.caches.append(new_cache)
+    auth_token = generate_auth_token(user_id_, new_session)
+    user.api_key = auth_token
     db.session.add(user)
     db.session.commit()
-    auth_token = generate_auth_token(user_id_, new_session, cache_name)
-    return auth_token
-
-
-@login.user_loader
-def load_user(user_id):
-    return User.query.filter_by(username=user_id).first()
+    return user.api_key
 
 
 @login.request_loader
@@ -65,7 +57,6 @@ def load_user_from_request(request):
 
     # next, try to login using Basic Auth
     api_key = request.headers.get('Authorization')
-    print("Auth header {}".format(api_key))
 
     if api_key:
         if isinstance(api_key, bytes):
@@ -101,7 +92,7 @@ def login():
     if request.method == "GET":
         return render_template("login_page.html", error=False)
 
-    user = load_user(request.form['username'])
+    user = User.query.filter_by(username=request.form['username']).first()
     if user is None:
         return render_template("login_page.html", error=True)
 
@@ -166,6 +157,7 @@ def logout():
 
 @app_run.route('/profiles', methods=['GET'])
 @login_required
+# TODO Pagination
 def list():
     if current_user.user_type == 'admin':
         return render_template("list.html", rows=LinkedInRecord.query.all())
@@ -187,7 +179,11 @@ def fetch_user_caches_view():
             # Remove files with 0 records that aren't from today
             if uc.created.date() != date.today():
                 continue
-        td = (uc.cache_id, uc.friendly_id, uc_count, uc.created)
+        if uc.active is True:
+            is_active = 'Yes'
+        else:
+            is_active = 'No'
+        td = (uc.cache_id, uc.friendly_id, uc_count, uc.created, is_active)
         user_files.append(td)
     user_files = sorted(user_files, key=itemgetter(3))
 
@@ -238,9 +234,12 @@ def serve_file(cache_id):
                              'charset': 'utf-8'})
 
 
-@app_run.route('/manage/files', methods=['GET'])
+@app_run.route('/manage/files/<category>', methods=['GET'])
 @login_required
-def file_manager():
+def file_manager(category):
+
+    # Displays the requested file action
+
     user = User.query.filter_by(id=current_user.id).first()
     users_caches = user.caches
     user_files = []
@@ -255,36 +254,103 @@ def file_manager():
         user_files.append(td)
     user_files = sorted(user_files, key=itemgetter(3))
 
-    return render_template('file_manager.html', user_files=user_files, code=request.args.get('code'))
+    return render_template('file_manager.html', user_files=user_files, category=category,
+                           code=request.args.get('code'))
 
 
-@app_run.route('/manage/files/rename', methods=['POST'])
+@app_run.route('/manage/files/<category>/do', methods=['POST'])
 @login_required
-def file_rename():
-    user = User.query.filter_by(id=current_user.id).first()
-    file_name = request.form.get('file_name')
-    file_new_name = request.form.get('new_name')
+# TODO Additional options such as new file, set file as active
+def file_manager_do(category):
 
-    allowchar = [' ', '_']
-    file_new_name = "".join([c for c in file_new_name if c.isalnum() or c in allowchar]).rstrip()
+    if category == 'rename':
 
-    # Locate the file referenced
-    user_file = UserCache.query.join(User).filter(User.id == user.id).filter(UserCache.cache_id == file_name).first()
-    if user_file:
-        pass
-    else:
-        user_file = UserCache.query.join(User).filter(User.id == user.id).filter(UserCache.friendly_id == file_name).first()
+        user = User.query.filter_by(id=current_user.id).first()
+        file_name = request.form.get('file_name')
+        file_new_name = request.form.get('new_name')
+
+        allowchar = [' ', '_']
+        file_new_name = "".join([c for c in file_new_name if c.isalnum() or c in allowchar]).rstrip()
+
+        # Locate the file referenced
+        user_file = UserCache.query.join(User).filter(User.id == user.id).filter(UserCache.cache_id == file_name).first()
         if user_file:
             pass
         else:
-            return redirect(url_for('file_manager', code="error"))
+            user_file = UserCache.query.join(User).filter(User.id == user.id).filter(
+                UserCache.friendly_id == file_name).first()
+            if user_file:
+                pass
+            else:
+                return redirect(url_for('file_manager', category='rename', code="error_rename"))
 
-    user_file.friendly_id = file_new_name
-    db.session.add(user_file)
-    db.session.commit()
-    return redirect(url_for('file_manager', code="success"))
+        user_file.friendly_id = file_new_name
+        db.session.add(user_file)
+        db.session.commit()
+        return redirect(url_for('file_manager', category='rename', code="success_rename"))
+
+    elif category == 'new':
+
+        user = User.query.filter_by(id=current_user.id).first()
+        file_new_name = request.form.get('new_name')
+
+        allowchar = [' ', '_']
+        file_new_name = "".join([c for c in file_new_name if c.isalnum() or c in allowchar]).rstrip()
+
+        # Find any active caches set them inactive
+        active_files = UserCache.query.join(User).filter(User.id == user.id).filter(
+            UserCache.active == True).all()
+
+        for ac in active_files:
+            ac.active = False
+            db.session.add(ac)
+
+        # Create new file
+        new_file = UserCache()
+        new_file.friendly_id = file_new_name
+        new_file.active = True
+        user.caches.append(new_file)
+
+        db.session.add(user)
+        db.session.add(new_file)
+        db.session.commit()
+        return redirect(url_for('file_manager', category='new', code="success_rename"))
+
+    elif category == 'set_active':
+
+        user = User.query.filter_by(id=current_user.id).first()
+        file_name = request.form.get('file_name')
+
+        # Find the cache referenced
+        target_file = UserCache.query.join(User).filter(User.id == user.id).filter(
+            UserCache.cache_id == file_name).first()
+        if target_file:
+            pass
+        else:
+            target_file = UserCache.query.join(User).filter(User.id == user.id).filter(
+                UserCache.friendly_id == file_name).first()
+            if target_file:
+                pass
+            else:
+                return redirect(url_for('file_manager', category='set_active', code="error_set"))
+
+        # Find active caches
+
+        active_files = UserCache.query.join(User).filter(User.id == user.id).filter(
+            UserCache.active == True).all()
+
+        for ac in active_files:
+            ac.active = False
+            db.session.add(ac)
+
+        target_file.active = True
+        db.session.add(target_file)
+        db.session.commit()
+        return redirect(url_for('file_manager', category='set_active', code="success_set"))
 
 
+# TODO User Deletes File
+# TODO User Selects Active File
 @app_run.route('/api/v1/token', methods=['POST'])
 def get_auth_token():
 
@@ -334,16 +400,25 @@ def profile():
     # Create association with record and User
     user_from_api.records.append(profile_record)
 
-    # Get the cache referred to in token
-    api_key = request.headers.get('Api-Key')
-    user_current_cache_id = User.current_cache_from_token(api_key)
-    user_current_cache = user_from_api.caches.filter(UserCache.cache_id == user_current_cache_id).first()
+    # Get the user's active cache
+    active_cache = UserCache.query.join(User).filter(User.id == user_from_api.id).filter(
+            UserCache.active == True).first()
+
+    # If no active, create new and set to active
+    if active_cache:
+        pass
+    else:
+        active_cache = UserCache()
+        active_cache.active = True
+        user_from_api.caches.append(active_cache)
+        # User has new cache, add to session
+        db.session.add(user_from_api)
 
     # Create association with the record and Cache
-    user_current_cache.profiles.append(profile_record)
+    active_cache.profiles.append(profile_record)
 
     # Cache is modified add it to session
-    db.session.add(user_current_cache)
+    db.session.add(active_cache)
     db.session.commit()
     # Form to JSON and reply with it
 
@@ -378,18 +453,27 @@ def prune():
                 # We don't want to fetch it
                 # But we want to create association
                 user_from_api = load_user_from_request(request)
-                api_key = request.headers.get('Api-Key')
-                user_current_cache_id = User.current_cache_from_token(api_key)
-                print("Users cache_id from token is {}".format(user_current_cache_id))
-                user_current_cache = user_from_api.caches.filter(UserCache.cache_id == user_current_cache_id).first()
-                print("Found this cache {}".format(user_current_cache))
+                # Get the user's active cache
+                active_cache = UserCache.query.join(User).filter(User.id == user_from_api.id).filter(
+                    UserCache.active == True).first()
+
+                # If no active, create new and set to active
+                if active_cache:
+                    pass
+                else:
+                    active_cache = UserCache()
+                    active_cache.active = True
+                    user_from_api.caches.append(active_cache)
+                    # User has new cache, add to session
+                    db.session.add(user_from_api)
+                    db.session.commit()
 
                 # Create association with the record and Cache
-                user_current_cache.profiles.append(lookup_result)
+                active_cache.profiles.append(lookup_result)
 
-                # Cache is modified, add it to session
-                db.session.add(user_current_cache)
-                db.session.commit()
+                # Cache is modified add it to session
+                db.session.add(active_cache)
+
 
                 # Remove the url from the response
                 profile_pruner.reference[k] = False
@@ -398,6 +482,7 @@ def prune():
         if v:
             pruned_urls.append(v['clean_url'])
 
+    db.session.commit()
     return jsonify({'data': pruned_urls}), 201
 
 
