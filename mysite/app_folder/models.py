@@ -12,9 +12,7 @@ from itsdangerous import (TimedJSONWebSignatureSerializer
 # Classes Here
 
 
-@login.user_loader
-def load_user(id):
-    return User.query.get(int(id))
+
 
 
 User_Records = db.Table('User_Records',
@@ -166,4 +164,9 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
 
     def get_id(self):
-        return self.username
+        return self.id
+
+
+@login.user_loader
+def load_user(id):
+    return User.query.get(int(id))

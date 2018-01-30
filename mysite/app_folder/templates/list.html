@@ -17,7 +17,11 @@
 
  {% for row in rows %}
     <tr>
+        {% if row["first_name"] != None %}
         {% set displayname = row["first_name"] + " " + row["last_name"] %}
+        {% else %}
+        {% set displayname = row["last_name"] %}
+        {% endif %}
         {% if row["end_date_0"] == None %}
             {% set workdate = row["start_date_0"] %}
         {% else %}
