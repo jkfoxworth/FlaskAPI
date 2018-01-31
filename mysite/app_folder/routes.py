@@ -358,7 +358,10 @@ def get_auth_token():
     user = load_user_from_request(request)
     if user:
         token = update_user_token(user)
-        return jsonify({'token': token.decode('ascii')})
+        if isinstance(token, str):
+            return jsonify({'token': token})
+        elif isinstance(token, bytes):
+            return jsonify({'token': token.decode('ascii')})
     else:
         print("User not found from token")
         return abort(401)
