@@ -82,6 +82,10 @@ class LinkedInRecord(db.Model):
         for k, v in LinkedInProfile.__dict__.items():
             if k[0] == '_': # Include or exclude properties based on _prop naming convetion
                 continue
+            if v:
+                pass  # Avoids overwriting data with None
+            else:
+                continue
             try:
                 setattr(self, k, v)
             except AttributeError:
