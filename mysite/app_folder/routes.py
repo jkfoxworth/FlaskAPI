@@ -432,6 +432,7 @@ def profile():
 @requires_key
 def prune():
     data = request.json['data']
+    print("User submits {}".format(data))
 
     profile_pruner = request_pruner.ProfilePruner(data)
     pruned_urls = []
@@ -439,10 +440,13 @@ def prune():
     def prune_record(lookup_result):
         created_date = lookup_result.created
         if created_date is None:
+            print("{} Record is Incomplete".format(lookup_result))
             return True  # incomplete record, get it
         if (date.today() - created_date).days >= profile_pruner.RECORD_IS_OLD:
+            print("{} Record is Old".format(lookup_result))
             return True  # old record, get it
         else:
+            print("{} Record is Duplicate".format(lookup_result))
             return False  # don't get it
 
     for k, v in profile_pruner.reference.items():
