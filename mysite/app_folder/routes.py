@@ -249,7 +249,8 @@ def file_manager(category):
         if uc_count == 0:
             # Remove files with 0 records that aren't from today
             if uc.created.date() != date.today():
-                continue
+                if uc.active is False:
+                    continue
         td = (uc.cache_id, uc.friendly_id, uc_count, uc.created)
         user_files.append(td)
     user_files = sorted(user_files, key=itemgetter(3))
