@@ -6,7 +6,7 @@ from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer, BadSignature, SignatureExpired)
 from functools import wraps
 import base64
-from datetime import date
+from datetime import datetime, date, timedelta
 from operator import itemgetter
 import string
 
@@ -577,6 +577,33 @@ def prune():
 
     db.session.commit()
     return jsonify({'data': pruned_urls}), 201
+
+
+@app_run.route('/api/v1/activity', methods=['GET'])
+@requires_key
+def activity():
+    user = load_user_from_request(request)
+    if user:
+        pass
+    else:
+        return abort(401)
+
+    # Get the active activity record for user
+    activity_tracker = user.get_activity()
+    if activity_tracker is False:  # Retrieve stats
+        activity_tracker = UserActivity(active=True)
+        user.activities.append(activity_tracker)
+        db.session.add(user)
+        db.session.commit()
+
+    # Calculate when allowance is reset (created + 1 day)
+    allowance_reset = (activity_tracker.created + timedelta(1)).isoformat()
+
+    activity_values = {'start': activity_tracker.created, 'new': activity_tracker.new_records,
+                       'borrow': activity_tracker.borrowed_records, 'allowance': user.allowance,
+                       'allowance_reset' : allowance_reset}
+
+    return jsonify({'activity': activity_values}), 200
 
 
 def format_results(record):

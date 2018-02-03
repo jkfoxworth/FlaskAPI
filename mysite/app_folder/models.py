@@ -155,6 +155,7 @@ class User(UserMixin, db.Model):
     records = db.relationship('LinkedInRecord', secondary=User_Records, lazy=True,
                               backref=db.backref('users', lazy=True))
     activities = db.relationship('UserActivity', backref='user', lazy='dynamic')
+    allowance = db.Column(db.Integer, default=450)  # New records allowed per day
     # Generating a random key to return to Extension after login success
 
     @staticmethod
@@ -186,6 +187,15 @@ class User(UserMixin, db.Model):
         return self.id
 
     def get_activity(self):
+        """
+        Queries a User for associated UserActivities.
+        Filters to UserActivities that are active=true
+        If UserActivity is active, but older than 1 day, it is set active=false
+
+        :return: UserActivity or False if no active, UserActivity < 1 day are found
+        """
+
+
         active_trackers = self.activities.filter_by(active=True).all()
         if active_trackers:
             pass
