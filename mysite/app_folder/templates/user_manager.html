@@ -14,37 +14,6 @@
 
     {% endif %}
 
-    {% if code == 'error_rename' %}
-    <div class="alert alert-warning" role="alert">
-
-    </div>
-
-    {% elif code == 'success_rename' %}
-    <div class="alert alert-success" role="alert">
-
-    </div>
-
-    {% elif code == 'success_new' %}
-    <div class="alert alert-success" role="alert">
-
-    </div>
-
-    {% elif code == 'error_new' %}
-    <div class="alert alert-warning" role="alert">
-
-    </div>
-
-    {% elif code == 'error_set' %}
-    <div class="alert alert-warning" role="alert">
-
-    </div>
-
-    {% elif code == 'success_set' %}
-    <div class="alert alert-success" role="alert">
-
-    </div>
-    {% else %}
-    {% endif %}
 
 
     {% if category == 'activity' %}
@@ -60,12 +29,12 @@
  {% for ui in user_info %}
         {% if ui[4] == 'Yes' %}
         {% set row_class = 'danger' %}
-        {% else if ui[4] == 'No' and ui[3] == 'Yes' %}
+        {% elif ui[4] == 'No' and ui[3] == 'Yes' %}
         {% set row_class = 'active' %}
         {% else %}
         {% set row_class = '' %}
         {% endif %}
-    <tr class="{{row_class}">
+    <tr class={{row_class}}>
         {% set display_time = ui[0].strftime('%b %d %Y at %I:%M %p') %}
         {% set new_records = ui[1] %}
         {% set borrowed_records = ui[2] %}
@@ -78,6 +47,7 @@
  {% endfor %}
 </table>
 </div>
+{% endif %}
 
 
 {% endblock %}

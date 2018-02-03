@@ -369,7 +369,7 @@ def manage_self(category):
                 ua_active = "Yes"
             else:
                 ua_active = "No"
-            if ua_created >= 450:
+            if ua_new >= 450:
                 ua_warn = "Yes"
             else:
                 ua_warn = "No"
