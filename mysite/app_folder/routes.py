@@ -1,5 +1,5 @@
 from app_folder import app_run, db, login, csv_parser, profile_parser, request_pruner
-from app_folder.models import User, LinkedInRecord, UserCache
+from app_folder.models import User, LinkedInRecord, UserCache, UserActivity
 from flask import render_template, redirect, url_for, request, abort, jsonify, Response
 from flask_login import login_user, current_user, logout_user, login_required
 from itsdangerous import (TimedJSONWebSignatureSerializer
@@ -351,7 +351,60 @@ def file_manager_do(category):
 
 
 # TODO User Deletes File
-# TODO User Selects Active File
+
+@app_run.route('/manage/self/<category>', methods=['GET'])
+@login_required
+def manage_self(category):
+    user = User.query.filter_by(id=current_user.id).first()
+
+    if category == 'activity':
+        user_activities = user.activities.all()
+        user_act_show = []
+        for ua in user_activities:
+            ua_new = ua.new_records
+            ua_borrow = ua.borrowed_records
+            ua_created = ua.created
+            ua_active = ua.active
+            if ua_active:
+                ua_active = "Yes"
+            else:
+                ua_active = "No"
+            if ua_new >= 450:
+                ua_warn = "Yes"
+            else:
+                ua_warn = "No"
+            if ua_borrow == 0 and ua_new == 0 and ua_active == 'No':
+                continue
+            td = (ua_created, ua_new, ua_borrow, ua_active, ua_warn)
+            user_act_show.append(td)
+        user_act_show = sorted(user_act_show, key=itemgetter(0))
+
+        return render_template('user_manager.html', user_info=user_act_show,
+                               category=category, code=request.args.get('code'))
+
+# Displays the requested file action
+
+
+    users_caches = user.caches
+    user_files = []
+    for uc in users_caches:
+        # Get count just once, expensive. If 0, skip it
+        uc_count = len(uc.profiles)
+        if uc_count == 0:
+            # Remove files with 0 records that aren't from today
+            if uc.created.date() != date.today():
+                if uc.active is False:
+                    continue
+        td = (uc.cache_id, uc.friendly_id, uc_count, uc.created)
+        user_files.append(td)
+    user_files = sorted(user_files, key=itemgetter(3))
+
+    return render_template('file_manager.html', user_files=user_files, category=category,
+                           code=request.args.get('code'))
+
+
+
+
 @app_run.route('/api/v1/token', methods=['POST'])
 def get_auth_token():
 
@@ -404,6 +457,20 @@ def profile():
     # Create association with record and User
     user_from_api.records.append(profile_record)
 
+    # Tally 1 to user activity
+    activity_tracker = user_from_api.get_activity()
+    if activity_tracker:
+        new_count = activity_tracker.new_records + 1
+        activity_tracker.new_records = new_count
+        db.session.add(activity_tracker)
+
+    # get_activity() returns False if no Active AND less than 1 day old found
+    else:
+        activity_tracker = UserActivity(new_records=1, active=True)
+        user_from_api.activities.append(activity_tracker)
+        db.session.add(user_from_api)
+
+
     # Get the user's active cache
     active_cache = UserCache.query.join(User).filter(User.id == user_from_api.id).filter(
             UserCache.active == True).first()
@@ -437,6 +504,32 @@ def prune():
 
     profile_pruner = request_pruner.ProfilePruner(data)
     pruned_urls = []
+    user_from_api = load_user_from_request(request)
+
+    active_cache = UserCache.query.join(User).filter(User.id == user_from_api.id).filter(
+        UserCache.active == True).first()
+
+    # If no active, create new and set to active
+    if active_cache:
+        pass
+    else:
+        active_cache = UserCache()
+        active_cache.active = True
+        user_from_api.caches.append(active_cache)
+        # User has new cache, add to session
+        db.session.add(user_from_api)
+        db.session.commit()
+
+    activity_tracker = user_from_api.get_activity()
+    if activity_tracker:
+        pass
+
+    # get_activity() returns False if no Active AND less than 1 day old found
+    else:
+        activity_tracker = UserActivity(new_records=1, active=True)
+        user_from_api.activities.append(activity_tracker)
+        db.session.add(user_from_api)
+        db.session.commit()
 
     def prune_record(lookup_result):
         created_date = lookup_result.created
@@ -460,21 +553,9 @@ def prune():
                 print("We have {} in database".format(lookup_result))
                 # We don't want to fetch it
                 # But we want to create association
-                user_from_api = load_user_from_request(request)
-                # Get the user's active cache
-                active_cache = UserCache.query.join(User).filter(User.id == user_from_api.id).filter(
-                    UserCache.active == True).first()
 
-                # If no active, create new and set to active
-                if active_cache:
-                    pass
-                else:
-                    active_cache = UserCache()
-                    active_cache.active = True
-                    user_from_api.caches.append(active_cache)
-                    # User has new cache, add to session
-                    db.session.add(user_from_api)
-                    db.session.commit()
+                # Get the user's active cache
+
 
                 # Create association with the record and Cache
                 active_cache.profiles.append(lookup_result)
@@ -482,6 +563,10 @@ def prune():
                 # Cache is modified add it to session
                 db.session.add(active_cache)
 
+                # Tally 1 to borrowed records
+                new_count = activity_tracker.borrowed_records + 1
+                activity_tracker.borrowed_records = new_count
+                db.session.add(activity_tracker)
 
                 # Remove the url from the response
                 profile_pruner.reference[k] = False
