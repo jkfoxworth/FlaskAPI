@@ -127,6 +127,20 @@ class UserCache(db.Model):
         return ''.join(holder)
 
 
+class UserActivity(db.Model):
+
+    __tablename__ = "UserActivity"
+
+    id = db.Column(db.Integer, primary_key=True)
+    active = db.Column(db.Boolean, default=True)
+    created = db.Column(db.DateTime, default=datetime.now())
+    # Tally from /profiles/
+    new_records = db.Column(db.Integer, default=0)
+    # Tally from /prune/
+    borrowed_records = db.Column(db.Integer, default=0)
+    user_id = db.Column(db.Integer, db.ForeignKey('Users.id'))
+
+
 class User(UserMixin, db.Model):
 
     __tablename__ = "Users"
@@ -140,6 +154,7 @@ class User(UserMixin, db.Model):
     caches = db.relationship('UserCache', backref='user', lazy='dynamic')
     records = db.relationship('LinkedInRecord', secondary=User_Records, lazy=True,
                               backref=db.backref('users', lazy=True))
+    activities = db.relationship('UserActivity', backref='user', lazy='dynamic')
     # Generating a random key to return to Extension after login success
 
     @staticmethod
@@ -169,6 +184,30 @@ class User(UserMixin, db.Model):
 
     def get_id(self):
         return self.id
+
+    def get_activity(self):
+        active_trackers = self.activities.filter_by(active=True).all()
+        if active_trackers:
+            pass
+        else:
+            return False  # No active tracker
+        current_trackers = []
+        for t in active_trackers:
+            if (datetime.now() - t.created).days > 0:
+                t.active = False
+                db.session.add(t)
+                db.session.commit()
+                continue
+            else:
+                current_trackers.append(t)
+        if current_trackers:
+            return current_trackers[0]
+        else:  # Will occur if 1 or more active trackers must be set inactive
+            return False
+
+
+
+
 
 
 @login.user_loader
