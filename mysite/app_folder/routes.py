@@ -599,9 +599,18 @@ def activity():
     # Calculate when allowance is reset (created + 1 day)
     allowance_reset = (activity_tracker.created + timedelta(1)).isoformat()
 
+    # Handle User Allowance
+    if user.allowance:
+        if user.allowance < activity_tracker.new_records:
+            allowance_remaining = 0
+        else:
+            allowance_remaining = user.allowance - activity_tracker.new_records
+    else:
+        allowance_remaining = 450 - activity_tracker.new_records
+
     activity_values = {'start': activity_tracker.created, 'new': activity_tracker.new_records,
-                       'borrow': activity_tracker.borrowed_records, 'allowance': user.allowance,
-                       'allowance_reset' : allowance_reset}
+                       'borrow': activity_tracker.borrowed_records, 'allowance':
+                           allowance_remaining, 'allowance_reset': allowance_reset}
 
     return jsonify({'activity': activity_values}), 200
 
