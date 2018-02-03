@@ -358,9 +358,50 @@ def manage_self(category):
     user = User.query.filter_by(id=current_user.id).first()
 
     if category == 'activity':
-        # TODO user new records
-        # TODO user recycled records
-        return 'hi'
+        user_activities = user.activities.all()
+        user_act_show = []
+        for ua in user_activities:
+            ua_new = ua.new_records
+            ua_borrow = ua.borrowed_records
+            ua_created = ua.created
+            ua_active = ua.active
+            if ua_active:
+                ua_active = "Yes"
+            else:
+                ua_active = "No"
+            if ua_created >= 450:
+                ua_warn = "Yes"
+            else:
+                ua_warn = "No"
+            if ua_borrow == 0 and ua_new == 0 and ua_active == 'No':
+                continue
+            td = (ua_created, ua_new, ua_borrow, ua_active, ua_warn)
+            user_act_show.append(td)
+        user_act_show = sorted(user_act_show, key=itemgetter(0))
+
+        return render_template('user_manager.html', user_info=user_act_show,
+                               category=category, code=request.args.get('code'))
+
+# Displays the requested file action
+
+
+    users_caches = user.caches
+    user_files = []
+    for uc in users_caches:
+        # Get count just once, expensive. If 0, skip it
+        uc_count = len(uc.profiles)
+        if uc_count == 0:
+            # Remove files with 0 records that aren't from today
+            if uc.created.date() != date.today():
+                if uc.active is False:
+                    continue
+        td = (uc.cache_id, uc.friendly_id, uc_count, uc.created)
+        user_files.append(td)
+    user_files = sorted(user_files, key=itemgetter(3))
+
+    return render_template('file_manager.html', user_files=user_files, category=category,
+                           code=request.args.get('code'))
+
 
 
 
