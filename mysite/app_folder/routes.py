@@ -200,11 +200,11 @@ def serve_file(cache_id):
     user = User.query.filter_by(id=current_user_id).first()
 
     if user is None or user is False:
-        abort(400)
+        abort(401)
     user_caches = user.caches
     user_caches_ids = [uc.cache_id for uc in user_caches]
     if cache_id not in user_caches_ids:
-        abort(400)
+        abort(404)
     fetched_cache = UserCache.query.filter_by(cache_id=cache_id).first()
     if fetched_cache.friendly_id:
         cache_file_name = fetched_cache.friendly_id
