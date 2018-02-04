@@ -18,7 +18,7 @@ def requires_key(func):
         if api_key is False:
             abort(400)
         if User.verify_auth_token(api_key) is False:
-            abort(400)
+            abort(401)
         elif User.verify_auth_token(api_key) is None:
             abort(401)
         else:
