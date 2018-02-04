@@ -16,8 +16,10 @@ def requires_key(func):
     def wrapped(*args, **kwargs):
         api_key = request.headers.get('Api-Key', False)
         if api_key is False:
+            print("No API-Key")
             abort(400)
         if User.verify_auth_token(api_key) is False:
+            print("Bad Key")
             abort(401)
         elif User.verify_auth_token(api_key) is None:
             abort(401)
