@@ -601,15 +601,17 @@ def activity():
 
     # Handle User Allowance
     if user.allowance:
+        user_allowance = user.allowance
         if user.allowance < activity_tracker.new_records:
             allowance_remaining = 0
         else:
             allowance_remaining = user.allowance - activity_tracker.new_records
     else:
+        user_allowance = 450
         allowance_remaining = 450 - activity_tracker.new_records
 
     activity_values = {'start': activity_tracker.created, 'new': activity_tracker.new_records,
-                       'borrow': activity_tracker.borrowed_records, 'allowance':
+                       'borrow': activity_tracker.borrowed_records,'allowance': user_allowance, 'allowance_remain':
                            allowance_remaining, 'allowance_reset': allowance_reset}
 
     return jsonify({'activity': activity_values}), 200
