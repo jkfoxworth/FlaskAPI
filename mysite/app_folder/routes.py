@@ -345,6 +345,7 @@ def file_manager_do(category):
         for ac in active_files:
             ac.active = False
             db.session.add(ac)
+            db.session.commit()
 
         target_file.active = True
         db.session.add(target_file)
@@ -455,6 +456,7 @@ def profile():
 
     # Done with record, add it to session
     db.session.add(profile_record)
+    db.session.commit()
 
     # Create association with record and User
     user_from_api.records.append(profile_record)
@@ -465,12 +467,14 @@ def profile():
         new_count = activity_tracker.new_records + 1
         activity_tracker.new_records = new_count
         db.session.add(activity_tracker)
+        db.session.commit()
 
     # get_activity() returns False if no Active AND less than 1 day old found
     else:
         activity_tracker = UserActivity(new_records=1, active=True)
         user_from_api.activities.append(activity_tracker)
         db.session.add(user_from_api)
+        db.session.commit()
 
 
     # Get the user's active cache
@@ -486,6 +490,7 @@ def profile():
         user_from_api.caches.append(active_cache)
         # User has new cache, add to session
         db.session.add(user_from_api)
+        db.session.commit()
 
     # Create association with the record and Cache
     active_cache.profiles.append(profile_record)
@@ -564,6 +569,7 @@ def prune():
 
                 # Cache is modified add it to session
                 db.session.add(active_cache)
+                db.session.commit()
 
                 # Tally 1 to borrowed records
                 new_count = activity_tracker.borrowed_records + 1
