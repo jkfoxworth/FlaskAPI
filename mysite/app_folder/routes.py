@@ -569,6 +569,7 @@ def prune():
                 new_count = activity_tracker.borrowed_records + 1
                 activity_tracker.borrowed_records = new_count
                 db.session.add(activity_tracker)
+                db.session.commit()
 
                 # Remove the url from the response
                 profile_pruner.reference[k] = False
