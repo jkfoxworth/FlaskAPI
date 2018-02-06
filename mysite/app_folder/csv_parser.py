@@ -3,7 +3,8 @@ import base64
 import pickle
 
 def db_to_csv(data):
-
+    # with open(r"C:\Users\estasney\PycharmProjects\FlaskAPIWeb\mysite\app_folder\country_codes.pkl", "rb") as cc:
+    #     country_dict = pickle.load(cc)
 
     with open(r"/home/eric/PycharmProjects/FlaskAPI/mysite/country_codes.pkl", "rb") as cc:
         country_dict = pickle.load(cc)
@@ -39,14 +40,14 @@ def db_to_csv(data):
 def make_resume(row):
     break_line = "-----------"
     resume = "{first} {last}\n{location}\nSummary{summary}\n{break_1}\n" \
-             "Experience\n\n" \
-             "{title_0} at {companyName_0}\n" \
-             "{start_date_0} - Present\n" \
-             "{summary_0}\n\n" \
-             "{title_1} at {companyName_1}\n" \
-             "{start_date_1} - {end_date_1}\n" \
-             "{summary_1}\n\n" \
-             "{title_2} at {companyName_2}\n" \
+             "Experience\r\n\r\n" \
+             "{title_0} at {companyName_0}\r\n" \
+             "{start_date_0} - Present\r\n" \
+             "{summary_0}\r\n\r\n" \
+             "{title_1} at {companyName_1}\r\n" \
+             "{start_date_1} - {end_date_1}\r\n" \
+             "{summary_1}\r\n\r\n" \
+             "{title_2} at {companyName_2}\r\n" \
              "{start_date_2} - {end_date_2}" \
              "{summary_2}".format(first=row.first_name,location=row.metro, last=row.last_name, summary=row.summary,
                                   break_1=break_line, title_0=row.title_0, companyName_0=row.companyName_0,
