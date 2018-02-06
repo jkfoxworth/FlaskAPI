@@ -592,6 +592,21 @@ def activity():
     else:
         return abort(401)
 
+    # Get the active cache for the user
+    active_cache = UserCache.query.join(User).filter(User.id == user.id).filter(
+        UserCache.active == True).first()
+
+    # If no active cache, message should indicate
+
+    if active_cache:
+        ac_filename = active_cache.friendly_id
+        if ac_filename:
+            pass
+        else:
+            ac_filename = active_cache.cache_id
+    else:
+        ac_filename = 'No Active File'
+
     # Get the active activity record for user
     activity_tracker = user.get_activity()
     if activity_tracker is False:  # Retrieve stats
@@ -615,8 +630,8 @@ def activity():
         allowance_remaining = 450 - activity_tracker.new_records
 
     activity_values = {'start': activity_tracker.created, 'new': activity_tracker.new_records,
-                       'borrow': activity_tracker.borrowed_records,'allowance': user_allowance, 'allowance_remain':
-                           allowance_remaining, 'allowance_reset': allowance_reset}
+                       'borrow': activity_tracker.borrowed_records, 'allowance': user_allowance, 'allowance_remain':
+                           allowance_remaining, 'allowance_reset': allowance_reset, 'active_file': ac_filename}
 
     return jsonify({'activity': activity_values}), 200
 
