@@ -550,32 +550,19 @@ def prune():
             print("{} Record is Duplicate".format(lookup_result))
             return False  # don't get it
 
+    append_to_cache_bin = []
+
     for k, v in profile_pruner.reference.items():
         member_id = v['member_id']
-        print("Searching for {}".format(member_id))
         lookup_result = LinkedInRecord.query.filter_by(member_id=member_id).first()
-        print("Found {}".format(lookup_result))
         if lookup_result:
             if prune_record(lookup_result) is False:
                 print("We have {} in database".format(lookup_result))
                 # We don't want to fetch it
                 # But we want to create association
-
                 # Get the user's active cache
-
-
                 # Create association with the record and Cache
-                active_cache.profiles.append(lookup_result)
-
-                # Cache is modified add it to session
-                db.session.add(active_cache)
-                db.session.commit()
-
-                # Tally 1 to borrowed records
-                new_count = activity_tracker.borrowed_records + 1
-                activity_tracker.borrowed_records = new_count
-                db.session.add(activity_tracker)
-                db.session.commit()
+                append_to_cache_bin.append(lookup_result)
 
                 # Remove the url from the response
                 profile_pruner.reference[k] = False
@@ -584,8 +571,16 @@ def prune():
         if v:
             pruned_urls.append(v['clean_url'])
 
-    db.session.commit()
-    return jsonify({'data': pruned_urls}), 201
+    if append_to_cache_bin:
+        for lr in append_to_cache_bin:
+            active_cache.profiles.append(lr)
+            new_count = activity_tracker.borrowed_records + 1
+            activity_tracker.borrowed_records = new_count
+        db.session.add(activity_tracker)
+        db.session.add(active_cache)
+        db.session.commit()
+    return jsonify({'data': pruned_urls, 'active_id': active_cache.cache_id, 'active_name': active_cache.friendly_id})\
+        , 201
 
 
 @app_run.route('/api/v1/activity', methods=['GET'])
