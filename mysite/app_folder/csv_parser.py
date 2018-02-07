@@ -2,12 +2,10 @@ import pandas as pd
 import base64
 import pickle
 
-def db_to_csv(data):
-    # with open(r"C:\Users\estasney\PycharmProjects\FlaskAPIWeb\mysite\app_folder\country_codes.pkl", "rb") as cc:
-    #     country_dict = pickle.load(cc)
 
-    # with open(r"/home/eric/PycharmProjects/FlaskAPI/mysite/country_codes.pkl", "rb") as cc:
-    #     country_dict = pickle.load(cc)
+def db_to_csv(data):
+    with open(r"/home/estasney1/mysite/app_folder/country_codes.pkl", "rb") as cc:
+        country_dict = pickle.load(cc)
     df = pd.DataFrame(data)
     df2 = pd.DataFrame(columns=['Full Name', 'First Name', 'Last Name', 'Metropolitan Area',
                                 'Home State', 'Home Postal Code', 'Home Country', 'Theater', 'Skills and Technologies',
@@ -41,7 +39,7 @@ def db_to_csv(data):
 
 def make_resume_b64(row):
     break_line = "-----------"
-    resume = "{first} {last}\n{location}\nSummary{summary}\n{break_1}\n" \
+    resume = "{first} {last}\r\n{location}\r\nSummary\r\n{summary}\r\n{break_1}\r\n" \
              "Experience\r\n\r\n" \
              "{title_0} at {companyName_0}\r\n" \
              "{start_date_0} - Present\r\n" \
@@ -63,7 +61,7 @@ def make_resume_b64(row):
 
 def make_resume(row):
     break_line = "-----------"
-    resume = "{first} {last}\n{location}\nSummary{summary}\n{break_1}\n" \
+    resume = "{first} {last}\r\n{location}\r\nSummary\r\n{summary}\r\n{break_1}\r\n" \
              "Experience\r\n\r\n" \
              "{title_0} at {companyName_0}\r\n" \
              "{start_date_0} - Present\r\n" \
