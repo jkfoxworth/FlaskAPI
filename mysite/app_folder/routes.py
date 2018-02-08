@@ -500,6 +500,9 @@ def profile():
     db.session.commit()
     # Form to JSON and reply with it
 
+    if activity_tracker.new_records >= user_from_api.allowance:
+        return jsonify({'action': 'exceeded limit'}), 429
+
     return jsonify({'action': 'success'}), 201
 
 
