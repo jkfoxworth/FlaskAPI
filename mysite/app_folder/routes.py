@@ -189,7 +189,7 @@ def fetch_user_caches_view():
         user_files.append(td)
     user_files = sorted(user_files, key=itemgetter(3))
 
-    return render_template('cache_list.html', user_files=user_files)
+    return render_template('cache_list.html', user_files=user_files, code=request.args.get('code'))
 
 
 @app_run.route('/download/<cache_id>', methods=['GET'])
@@ -263,7 +263,6 @@ def file_manager(category):
 
 @app_run.route('/manage/files/<category>/do', methods=['POST'])
 @login_required
-# TODO Additional options such as new file, set file as active
 def file_manager_do(category):
 
     if category == 'rename':
@@ -351,6 +350,24 @@ def file_manager_do(category):
         db.session.add(target_file)
         db.session.commit()
         return redirect(url_for('file_manager', category='set_active', code="success_set"))
+
+
+@app_run.route('/manage/files/delete/<cache_id>')
+@login_required
+def delete_cache(cache_id):
+
+    user = User.query.filter_by(id=current_user.id).first()
+    target_file = UserCache.query.join(User).filter(User.id == user.id).filter(
+        UserCache.cache_id == cache_id).first()
+    if target_file:
+        pass
+    else:
+        return redirect(url_for('fetch_user_caches_view', code="error_delete"))
+
+    db.session.delete(target_file)
+    db.session.commit()
+
+    return redirect(url_for('fetch_user_caches_view', code="success_delete"))
 
 
 # TODO User Deletes File

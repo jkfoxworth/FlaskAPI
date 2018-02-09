@@ -1,9 +1,23 @@
 {% extends "layout.html" %}
 
 {% block content %}
+
+{% if code == 'error_delete' %}
+<div class="alert alert-warning text-center" role="alert">
+    Error deleting file
+</div>
+
+{% elif code == 'success_delete' %}
+<div class="alert alert-success text-center" role="alert">
+    File Deleted!
+</div>
+{% else %}
+{% endif %}
+
 <div class="container-fluid text-center">
 <table class="table">
  <tr class="bg-grey">
+     <th class="text-center">Delete</th>
      <th class="text-center">File ID</th>
      <th class="text-center">File Name</th>
      <th class="text-center">Record Count</th>
@@ -18,6 +32,13 @@
         {% set friendly_id = uf[1] %}
         {% set file_id = uf[0] %}
         {% set active_status = uf[4] %}
+        <td>
+            <button class="btn btn-default">
+                <a href="manage/files/delete/{{file_id}}">
+                    <span class="glyphicon glyphicon-remove-sign"></span>
+                </a>
+            </button>
+        </td>
         <td><a href="/download/{{file_id}}">{{file_id}}</a></td>
         <td>{{friendly_id}}</td>
         <td>{{record_count}}</td>
