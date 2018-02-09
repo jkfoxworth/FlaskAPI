@@ -26,14 +26,14 @@
  </tr>
 
  {% for uf in user_files %}
-    <tr>
+    <tr class="text-vert-middle">
         {% set display_time = uf[3].strftime('%b %d %Y at %I:%M %p') %}
         {% set record_count = uf[2] %}
         {% set friendly_id = uf[1] %}
         {% set file_id = uf[0] %}
         {% set active_status = uf[4] %}
         <td>
-            <button class="btn btn-default">
+            <button class="btn-sm btn-default">
                 <a href="manage/files/delete/{{file_id}}">
                     <span class="glyphicon glyphicon-remove-sign"></span>
                 </a>

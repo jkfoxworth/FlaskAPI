@@ -53,6 +53,12 @@ body {
   .bg-white {
       background-color: #ffffff;
       }
+  td{
+    vertical-align: inherit !important;
+  }
+  tr.text-vert-middle {
+    vertical-align: middle !important;
+  }
   .logo-small {
       color: #f4511e;
       font-size: 50px;
