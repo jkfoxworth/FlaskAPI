@@ -1,12 +1,14 @@
-from app_folder import app_run, db
-from werkzeug.security import check_password_hash
-from flask_login import UserMixin
-from app_folder import login
+import random
 from datetime import date, datetime
 from string import ascii_letters
-import random
+
+from flask_login import UserMixin
 from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer, BadSignature, SignatureExpired)
+from werkzeug.security import check_password_hash
+
+from app_folder import app_run, db
+from app_folder import login
 
 # Login checking can be done here
 # Classes Here
