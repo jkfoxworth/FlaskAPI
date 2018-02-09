@@ -316,7 +316,7 @@ def file_manager_do(category):
         db.session.add(user)
         db.session.add(new_file)
         db.session.commit()
-        return redirect(url_for('file_manager', category='new', code="success_rename"))
+        return redirect(url_for('file_manager', category='new', code="success_new"))
 
     elif category == 'set_active':
 
