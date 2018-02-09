@@ -187,7 +187,7 @@ def fetch_user_caches_view():
             is_active = 'No'
         td = (uc.cache_id, uc.friendly_id, uc_count, uc.created, is_active)
         user_files.append(td)
-    user_files = sorted(user_files, key=itemgetter(3))
+    user_files = sorted(user_files, key=itemgetter(4, 3), reverse=True)
 
     return render_template('cache_list.html', user_files=user_files, code=request.args.get('code'))
 
