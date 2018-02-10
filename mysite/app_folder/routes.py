@@ -176,16 +176,11 @@ def fetch_user_caches_view():
     users_caches = user.caches
     user_files = []
     for uc in users_caches:
-        # Get count just once, expensive. If 0, skip it
-        uc_count = len(uc.profiles)
-        if uc_count == 0:
-            # Remove files with 0 records that aren't from today
-            if uc.created.date() != date.today():
-                continue
         if uc.active is True:
             is_active = 'Yes'
         else:
             is_active = 'No'
+        uc_count = len(uc.profiles)
         td = (uc.cache_id, uc.friendly_id, uc_count, uc.created, is_active)
         user_files.append(td)
     user_files = sorted(user_files, key=itemgetter(4, 3), reverse=True)
