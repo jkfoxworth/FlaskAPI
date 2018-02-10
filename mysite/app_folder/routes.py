@@ -462,7 +462,6 @@ def profile():
     # Get user id to associate to the record
     user_from_api = load_user_from_request(request)
     user_id = user_from_api.id
-    print("New record from {}".format(user_id))
 
     # Check if record already exists
 
@@ -474,10 +473,11 @@ def profile():
 
     # Done with record, add it to session
     db.session.add(profile_record)
-    db.session.commit()
 
     # Create association with record and User
     user_from_api.records.append(profile_record)
+    db.session.add(user_from_api)
+
 
     # Tally 1 to user activity
     activity_tracker = user_from_api.get_activity()
@@ -485,14 +485,13 @@ def profile():
         new_count = activity_tracker.new_records + 1
         activity_tracker.new_records = new_count
         db.session.add(activity_tracker)
-        db.session.commit()
+        db.session.add(user_from_api)
 
     # get_activity() returns False if no Active AND less than 1 day old found
     else:
         activity_tracker = UserActivity(new_records=1, active=True)
         user_from_api.activities.append(activity_tracker)
         db.session.add(user_from_api)
-        db.session.commit()
 
 
     # Get the user's active cache
@@ -508,13 +507,13 @@ def profile():
         user_from_api.caches.append(active_cache)
         # User has new cache, add to session
         db.session.add(user_from_api)
-        db.session.commit()
 
     # Create association with the record and Cache
     active_cache.profiles.append(profile_record)
 
     # Cache is modified add it to session
     db.session.add(active_cache)
+
     db.session.commit()
     # Form to JSON and reply with it
 
@@ -557,6 +556,7 @@ def prune():
         activity_tracker = UserActivity(new_records=1, active=True)
         user_from_api.activities.append(activity_tracker)
         db.session.add(user_from_api)
+        db.session.add(activity_tracker)
         db.session.commit()
 
     def prune_record(lookup_result):
