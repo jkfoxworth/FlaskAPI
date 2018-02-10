@@ -59,6 +59,9 @@ class LinkedInProfile(object):
         self.public_url = None
         self.recruiter_url = None
 
+        self.isCompanyFollower = None
+        self.careerInterests = None
+
         self.parse_positions()
         self.parse_profile()
 
@@ -174,6 +177,13 @@ class LinkedInProfile(object):
             recruiter_params = profile_.get('findAuthInputModel', False)
             if recruiter_params:
                 self.recruiter_url = 'https://www.linkedin.com/recruiter/profile/' + recruiter_params.get('asUrlParam', None)
+
+            self.isCompanyFollower = profile_.get('isCompanyFollower', False)
+            has_career_interests = profile_.get('careerInterests', False)
+            if has_career_interests:
+                self.careerInterests = True
+            else:
+                self.careerInterests = False
 
     def parse_educations(self, educations):
         if educations is False:

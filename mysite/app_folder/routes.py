@@ -1,14 +1,15 @@
-from app_folder import app_run, db, login, csv_parser, profile_parser, request_pruner
-from app_folder.models import User, LinkedInRecord, UserCache, UserActivity
+import base64
+from datetime import date, timedelta
+from functools import wraps
+from operator import itemgetter
+
 from flask import render_template, redirect, url_for, request, abort, jsonify, Response
 from flask_login import login_user, current_user, logout_user, login_required
 from itsdangerous import (TimedJSONWebSignatureSerializer
-                          as Serializer, BadSignature, SignatureExpired)
-from functools import wraps
-import base64
-from datetime import datetime, date, timedelta
-from operator import itemgetter
-import string
+                          as Serializer)
+
+from app_folder import app_run, db, login, csv_parser, profile_parser, request_pruner
+from app_folder.models import User, LinkedInRecord, UserCache, UserActivity
 
 
 def requires_key(func):
@@ -175,16 +176,11 @@ def fetch_user_caches_view():
     users_caches = user.caches
     user_files = []
     for uc in users_caches:
-        # Get count just once, expensive. If 0, skip it
-        uc_count = len(uc.profiles)
-        if uc_count == 0:
-            # Remove files with 0 records that aren't from today
-            if uc.created.date() != date.today():
-                continue
         if uc.active is True:
             is_active = 'Yes'
         else:
             is_active = 'No'
+        uc_count = len(uc.profiles)
         td = (uc.cache_id, uc.friendly_id, uc_count, uc.created, is_active)
         user_files.append(td)
     user_files = sorted(user_files, key=itemgetter(4, 3), reverse=True)
@@ -461,7 +457,6 @@ def profile():
     # Get user id to associate to the record
     user_from_api = load_user_from_request(request)
     user_id = user_from_api.id
-    print("New record from {}".format(user_id))
 
     # Check if record already exists
 
@@ -473,10 +468,11 @@ def profile():
 
     # Done with record, add it to session
     db.session.add(profile_record)
-    db.session.commit()
 
     # Create association with record and User
     user_from_api.records.append(profile_record)
+    db.session.add(user_from_api)
+
 
     # Tally 1 to user activity
     activity_tracker = user_from_api.get_activity()
@@ -484,14 +480,13 @@ def profile():
         new_count = activity_tracker.new_records + 1
         activity_tracker.new_records = new_count
         db.session.add(activity_tracker)
-        db.session.commit()
+        db.session.add(user_from_api)
 
     # get_activity() returns False if no Active AND less than 1 day old found
     else:
         activity_tracker = UserActivity(new_records=1, active=True)
         user_from_api.activities.append(activity_tracker)
         db.session.add(user_from_api)
-        db.session.commit()
 
 
     # Get the user's active cache
@@ -507,13 +502,13 @@ def profile():
         user_from_api.caches.append(active_cache)
         # User has new cache, add to session
         db.session.add(user_from_api)
-        db.session.commit()
 
     # Create association with the record and Cache
     active_cache.profiles.append(profile_record)
 
     # Cache is modified add it to session
     db.session.add(active_cache)
+
     db.session.commit()
     # Form to JSON and reply with it
 
@@ -556,6 +551,7 @@ def prune():
         activity_tracker = UserActivity(new_records=1, active=True)
         user_from_api.activities.append(activity_tracker)
         db.session.add(user_from_api)
+        db.session.add(activity_tracker)
         db.session.commit()
 
     def prune_record(lookup_result):
