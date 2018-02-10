@@ -12,7 +12,8 @@ def db_to_csv(data):
                                 'Home State', 'Home Postal Code', 'Home Country', 'Theater', 'Skills and Technologies',
                                 'Company', 'Position Title', 'Prior Employer', 'Prior Position Title',
                                 'Work History - Company', 'Work History - Position title', 'Home Email', 'Work Email',
-                                'Mobile Phone', 'Home Phone', 'Work Phone', 'Summary', 'Website', 'Source',
+                                'Mobile Phone', 'Home Phone', 'Work Phone', 'Open To Opportunities', 'Company Follower',
+                                'Summary', 'Website', 'Source',
                                 'Base64-encoded attachment Name', 'Base64-encoded attachment content'])
     df2['Full Name'] = df['first_name'] + " " + df['last_name']
     df2['First Name'] = df['first_name']
@@ -27,6 +28,8 @@ def db_to_csv(data):
     df2['Prior Position Title'] = df['title_1']
     df2['Work History - Company'] = df['companyName_2']
     df2['Work History - Position title'] = df['title_2']
+    df2['Open To Opportunities'] = df['careerInterests'].apply(lambda x: boolean_to_string(x))
+    df2['Company Follower'] = df['isCompanyFollower'].apply(lambda x: boolean_to_string(x))
     df2['Summary'] = df['summary']
     df2['Website'] = df['public_url']
     df2['Resume'] = df.apply(make_resume, axis=1)
@@ -80,3 +83,12 @@ def make_resume(row):
                                   companyName_2=row.companyName_2, start_date_2=row.start_date_2,
                                   end_date_2=row.end_date_2, summary_2=row.summary_2)
     return resume
+
+
+def boolean_to_string(x):
+        if x is True or x.lower() == 'true':
+            return 'Yes'
+        elif x is False or x.lower() == 'false':
+            return 'No'
+        elif x is None or x == '':
+            return ''
