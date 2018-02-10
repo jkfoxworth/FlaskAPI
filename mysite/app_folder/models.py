@@ -10,13 +10,6 @@ from werkzeug.security import check_password_hash
 from app_folder import app_run, db
 from app_folder import login
 
-# Login checking can be done here
-# Classes Here
-
-
-
-
-
 User_Records = db.Table('User_Records',
                         db.Column('user_id', db.Integer, db.ForeignKey('Users.id'), primary_key=True),
                         db.Column('member_id', db.Integer, db.ForeignKey('Profiles.member_id'), primary_key=True)
@@ -77,12 +70,15 @@ class LinkedInRecord(db.Model):
     public_url = db.Column(db.Text)
     recruiter_url = db.Column(db.Text)
 
+    isCompanyFollower = db.Column(db.Boolean)
+    careerInterests = db.Column(db.Boolean)
+
     def __init__(self, LinkedInProfile):
         """
         :param LinkedInProfile:
         """
         for k, v in LinkedInProfile.__dict__.items():
-            if k[0] == '_': # Include or exclude properties based on _prop naming convetion
+            if k[0] == '_':  # Include or exclude properties based on _prop naming convention
                 continue
             if v:
                 pass  # Avoids overwriting data with None
@@ -197,7 +193,6 @@ class User(UserMixin, db.Model):
         :return: UserActivity or False if no active, UserActivity < 1 day are found
         """
 
-
         active_trackers = self.activities.filter_by(active=True).all()
         if active_trackers:
             pass
@@ -216,10 +211,6 @@ class User(UserMixin, db.Model):
             return current_trackers[0]
         else:  # Will occur if 1 or more active trackers must be set inactive
             return False
-
-
-
-
 
 
 @login.user_loader
