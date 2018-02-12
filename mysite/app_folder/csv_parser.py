@@ -13,7 +13,7 @@ def db_to_csv(data):
                                 'Company', 'Position Title', 'Prior Employer', 'Prior Position Title',
                                 'Work History - Company', 'Work History - Position title', 'Home Email', 'Work Email',
                                 'Mobile Phone', 'Home Phone', 'Work Phone', 'Open To Opportunities', 'Company Follower',
-                                'Summary', 'Website', 'Source',
+                                'Graduation Date', 'Summary', 'Website', 'Source',
                                 'Base64-encoded attachment Name', 'Base64-encoded attachment content'])
     df2['Full Name'] = df['first_name'] + " " + df['last_name']
     df2['First Name'] = df['first_name']
@@ -30,6 +30,7 @@ def db_to_csv(data):
     df2['Work History - Position title'] = df['title_2']
     df2['Open To Opportunities'] = df['careerInterests'].apply(lambda x: boolean_to_string(x))
     df2['Company Follower'] = df['isCompanyFollower'].apply(lambda x: boolean_to_string(x))
+    df2['Graduation Date'] = df['first_graduation_date']
     df2['Summary'] = df['summary']
     df2['Website'] = df['public_url']
     df2['Resume'] = df.apply(make_resume, axis=1)

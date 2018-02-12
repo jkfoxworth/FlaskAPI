@@ -1,12 +1,6 @@
 from datetime import date
 import re
 
-# TODO Interested Candidates
-# TODO profile/careerInterests (interestedTitles, interestedLocations)
-
-# TODO profile/notes/(integer)/note
-# TODO profile/isCompanyFollower
-
 
 class LinkedInProfile(object):
     """
