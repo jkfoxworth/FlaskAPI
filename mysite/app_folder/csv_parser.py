@@ -30,7 +30,7 @@ def db_to_csv(data):
     df2['Work History - Position title'] = df['title_2']
     df2['Open To Opportunities'] = df['careerInterests'].apply(lambda x: boolean_to_string(x))
     df2['Company Follower'] = df['isCompanyFollower'].apply(lambda x: boolean_to_string(x))
-    df2['Graduation Date'] = df['first_graduation_date']
+    df2['Graduation Date or Expected Graduation Date'] = df['first_graduation_date']
     df2['Summary'] = df['summary']
     df2['Website'] = df['public_url']
     df2['Resume'] = df.apply(make_resume, axis=1)
