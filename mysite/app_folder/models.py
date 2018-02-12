@@ -67,6 +67,9 @@ class LinkedInRecord(db.Model):
     education_end = db.Column(db.Date)
     education_degree = db.Column(db.Text)
     education_study_field = db.Column(db.Text)
+
+    first_graduation_date = db.Column(db.Date)
+
     public_url = db.Column(db.Text)
     recruiter_url = db.Column(db.Text)
 
