@@ -1,11 +1,6 @@
 from datetime import date
 import re
 
-# TODO Interested Candidates
-# TODO profile/careerInterests (interestedTitles, interestedLocations)
-
-# TODO profile/notes/(integer)/note
-# TODO profile/isCompanyFollower
 
 class LinkedInProfile(object):
     """
@@ -56,6 +51,9 @@ class LinkedInProfile(object):
         self.education_end = None
         self.education_degree = None
         self.education_study_field = None
+
+        self.first_graduation_date = None  # References first graduation date
+
         self.public_url = None
         self.recruiter_url = None
 
@@ -189,31 +187,44 @@ class LinkedInProfile(object):
         if educations is False:
             return None
 
+        # Separate into current and past
+        current_edu = list(filter(lambda x: 'endDateYear' not in x, educations))
+        previous_edu = list(filter(lambda x: 'endDateYear' in x, educations))
+
+        # Handle current edu
+        if current_edu:
+            if isinstance(current_edu, list):
+                current_edu = current_edu[0]
+            self.education_school = current_edu.get('schoolName', None)
+            education_start = current_edu.get('startDateYear', None)
+            if education_start:
+                self.education_start = date(year=education_start, month=1, day=1)
+            education_end = current_edu.get('endDateYear', None)
+            if education_end:
+                self.education_end = date(year=education_end, month=1, day=1)
+            self.education_degree = current_edu.get('degree', None)
+            self.education_study_field = current_edu.get('fieldOfStudy', None)
+
+
+        # Handle past education
+        # Find first graduation date. Sort list containing dict if needed
+
+        if previous_edu:
+            if isinstance(previous_edu, list):
+                sorted_previous = sorted(previous_edu, key=lambda x: x['endDateYear'])  # Sort for earliest
+                previous_edu = sorted_previous[0]  # 0 result will be earliest
+                grad_year = previous_edu.get('endDateYear', None)
+                if grad_year:
+                    self.first_graduation_date = date(year=grad_year, month=5, day=1)
+
         # May be 1 or more
         # Choose most recent
 
-        if len(educations) > 1:
-            # If end date not in all, return those without
-            if all('endDateYear' in edu for edu in educations) is False:
-                current_edu = list(filter(lambda x: 'endDateYear' not in x, educations))
-                educations = [current_edu[0]] # Potentially more than 1 match, but choose 1
-                # Keep in list form to be compatible with next if statement
 
-        if len(educations) == 1:
-            edu = educations[0]
-            self.education_school = edu.get('schoolName', None)
-            education_start = edu.get('startDateYear', None)
 
-            if education_start:
-                self.education_start = date(year=education_start, month=1, day=1)
 
-            education_end = edu.get('endDateYear', None)
 
-            if education_end:
-                self.education_end = date(year=education_end, month=1, day=1)
 
-            self.education_degree = edu.get('degree', None)
-            self.education_study_field = edu.get('fieldOfStudy', None)
 
     def parse_location(self, geo_url):
         if geo_url is False:
