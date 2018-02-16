@@ -217,6 +217,7 @@ class User(UserMixin, db.Model):
 
     def generate_new_password(self, new_password):
         self.password_hash = generate_password_hash(new_password)
+        self.current_session_user = self.current_session_user + 1
 
 
 
