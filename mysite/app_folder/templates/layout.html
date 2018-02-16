@@ -50,14 +50,21 @@
     </div>
   </div>
 </nav>
-{% if current_user.is_authenticated %}
-<div class="jumbotron text-center">
-  {% else %}
-<div class="jumbotron-landing text-center">
-  {% endif %}
+{% if media == 'True' %}
+<div class="jumbotron-landing">
+  <video id="video-background" preload muted autoplay loop>
+    <source src="http://estasney1.pythonanywhere.com/video/hermes" type="video/mp4">
+
+  </video>
   <h1>Hermes</h1>
   <p>A Messenger</p>
 </div>
+{% else %}
+  <div class="jumbotron text-center">
+  <h1>Hermes</h1>
+  <p>A Messenger</p>
+</div>
+{% endif %}
 
 <div id="content">{% block content %}{% endblock %}</div>
 <script>

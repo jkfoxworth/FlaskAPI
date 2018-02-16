@@ -20,6 +20,8 @@ body {
 
   .jumbotron-landing {
       background-color: #313131;
+      position: relative;
+      z-index: -101;
       color: #fff;
       padding: 100px 25px;
       font-family: Montserrat, sans-serif;
@@ -32,6 +34,16 @@ body {
       font-family: Montserrat, sans-serif;
       margin-bottom: 0;
   }
+  #video-background {
+  position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    overflow: hidden;
+    z-index: -100;
+    width:100%;
+}
 
   .addition-word {
       background-color: rgba(69, 228, 57, 0.27);
