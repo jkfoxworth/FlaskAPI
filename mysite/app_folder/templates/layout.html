@@ -50,7 +50,11 @@
     </div>
   </div>
 </nav>
+{% if current_user.is_authenticated %}
 <div class="jumbotron text-center">
+  {% else %}
+<div class="jumbotron-landing text-center">
+  {% endif %}
   <h1>Hermes</h1>
   <p>A Messenger</p>
 </div>

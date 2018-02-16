@@ -18,13 +18,21 @@ body {
       margin-bottom: 30px;
   }
 
-  .jumbotron {
-      background-color: #f4511e;
+  .jumbotron-landing {
+      background-color: #313131;
       color: #fff;
       padding: 100px 25px;
       font-family: Montserrat, sans-serif;
       margin-bottom: 0;
   }
+
+  .jumbotron {
+      background-color: #313131;
+      color: #fff;
+      font-family: Montserrat, sans-serif;
+      margin-bottom: 0;
+  }
+
   .addition-word {
       background-color: rgba(69, 228, 57, 0.27);
   }
@@ -137,7 +145,7 @@ body {
   }
   .navbar {
       margin-bottom: 0;
-      background-color: #f4511e;
+      background-color: #313131;
       z-index: 9999;
       border: 0;
       font-size: 12px !important;
