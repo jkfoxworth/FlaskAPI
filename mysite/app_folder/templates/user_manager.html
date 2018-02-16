@@ -8,6 +8,8 @@
     {% if category == 'activity' %}
     <p>View Your Activity!</p>
 
+    {% elif category == 'password' %}
+    <p>Change Your Password!</p>
 
     {% else %}
     <p>Manage Your Profile!</p>
@@ -15,38 +17,104 @@
     {% endif %}
 
 
-
     {% if category == 'activity' %}
     <div class="container-fluid text-center">
-    <table class="table">
-    <tr class="bg-grey">
-     <th class="text-center">Date</th>
-     <th class="text-center" data-toggle="tooltip" title="Your extractions. This counts against your daily limit.">New Records</th>
-     <th class="text-center" data-toggle="tooltip" title="Profiles you added to your cart but were not extracted. This was a duplicate record and if not already present, added to your active file. Does not count against daily limit">Borrowed Records</th>
-     <th class="text-center">Active?</th>
- </tr>
+        <table class="table">
+            <tr class="bg-grey">
+                <th class="text-center">Date</th>
+                <th class="text-center" data-toggle="tooltip"
+                    title="Your extractions. This counts against your daily limit.">New Records
+                </th>
+                <th class="text-center" data-toggle="tooltip"
+                    title="Profiles you added to your cart but were not extracted. This was a duplicate record and if not already present, added to your active file. Does not count against daily limit">
+                    Borrowed Records
+                </th>
+                <th class="text-center">Active?</th>
+            </tr>
 
- {% for ui in user_info %}
-        {% if ui[4] == 'Yes' %}
-        {% set row_class = 'danger' %}
-        {% elif ui[4] == 'No' and ui[3] == 'Yes' %}
-        {% set row_class = 'active' %}
-        {% else %}
-        {% set row_class = '' %}
-        {% endif %}
-    <tr class={{row_class}}>
-        {% set display_time = ui[0].strftime('%b %d %Y at %I:%M %p') %}
-        {% set new_records = ui[1] %}
-        {% set borrowed_records = ui[2] %}
-        {% set active_status = ui[3] %}
-        <td>{{display_time}}</td>
-        <td>{{new_records}}</td>
-        <td>{{borrowed_records}}</td>
-        <td>{{active_status}}</td>
-    </tr>
- {% endfor %}
-</table>
-</div>
+            {% for ui in user_info %}
+            {% if ui[4] == 'Yes' %}
+            {% set row_class = 'danger' %}
+            {% elif ui[4] == 'No' and ui[3] == 'Yes' %}
+            {% set row_class = 'active' %}
+            {% else %}
+            {% set row_class = '' %}
+            {% endif %}
+            <tr class={{row_class}}>
+                {% set display_time = ui[0].strftime('%b %d %Y at %I:%M %p') %}
+                {% set new_records = ui[1] %}
+                {% set borrowed_records = ui[2] %}
+                {% set active_status = ui[3] %}
+                <td>{{display_time}}</td>
+                <td>{{new_records}}</td>
+                <td>{{borrowed_records}}</td>
+                <td>{{active_status}}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    {% elif category == 'password' %}
+
+    {% if code == 'success' %}
+    <div class="alert alert-success" role="alert">
+        Password Changed!
+    </div>
+
+    {% elif code == 'error_wrong' %}
+
+    <div class="alert alert-warning" role="alert">
+        That is not your password
+    </div>
+
+    {% elif code == 'error_confirm' %}
+    <div class="alert alert-warning" role="alert">
+        Your new password does not match what was entered in "Confirm Password"
+    </div>
+
+    {% elif code == 'error_no_password' %}
+    <div class="alert alert-warning" role="alert">
+        Sorry, no blank passwords allowed
+    </div>
+
+    {% else %}
+    {% endif %}
+
+    <div class="container text-center">
+    <form action="/manage/self/password" method="POST" class="form-horizontal">
+        <div class="form-group">
+            <label for="oldpassword" class="col-sm-2 control-label">Current Password</label>
+            <div class="col-sm-10">
+                <input type="password" class="form-control" id="oldpassword" placeholder="Old Password"
+                       name="old_password">
+
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="newpassword1" class="col-sm-2 control-label">New Password</label>
+            <div class="col-sm-10">
+                <input type="password" class="form-control" id="newpassword1" placeholder="New Password"
+                       name="new_password1">
+
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="newpassword2" class="col-sm-2 control-label">Confirm Password</label>
+            <div class="col-sm-10">
+                <input type="password" class="form-control" id="newpassword2" placeholder="Confirm Password"
+                       name="new_password2">
+
+            </div>
+        </div>
+        <div class="form-group">
+            <div class="col-sm-offset-1 col-sm-10">
+                <button type="submit" class="btn btn-default">Change Password</button>
+            </div>
+        </div>
+
+
+</form>
+        </div>
 {% endif %}
 
 
