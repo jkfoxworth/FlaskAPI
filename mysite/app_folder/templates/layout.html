@@ -50,10 +50,21 @@
     </div>
   </div>
 </nav>
-<div class="jumbotron text-center">
+{% if media == 'True' %}
+<div class="jumbotron-landing">
+  <video id="video-background" muted autoplay preload loop>
+    <source src="http://estasney1.pythonanywhere.com/video/hermes" type="video/mp4">
+
+  </video>
   <h1>Hermes</h1>
   <p>A Messenger</p>
 </div>
+{% else %}
+  <div class="jumbotron text-center">
+  <h1>Hermes</h1>
+  <p>A Messenger</p>
+</div>
+{% endif %}
 
 <div id="content">{% block content %}{% endblock %}</div>
 <script>

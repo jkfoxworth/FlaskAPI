@@ -85,9 +85,9 @@ def load_user_from_request(request):
     return None
 
 
-@app_run.route('/', methods=['GET', 'POST'])
+@app_run.route('/')
 def index():
-    return render_template('welcome.html')
+    return render_template('layout.html', media='True')
 
 
 @app_run.route('/login/', methods=['GET', 'POST'])
