@@ -368,7 +368,7 @@ def delete_cache(cache_id):
 
 # TODO User Deletes File
 
-@app_run.route('/manage/self/<category>', methods=['GET'])
+@app_run.route('/manage/self/<category>', methods=['GET', 'POST'])
 @login_required
 def manage_self(category):
     user = User.query.filter_by(id=current_user.id).first()
@@ -400,25 +400,30 @@ def manage_self(category):
 
 # Displays the requested file action
 
+    elif category == 'password':
 
-    users_caches = user.caches
-    user_files = []
-    for uc in users_caches:
-        # Get count just once, expensive. If 0, skip it
-        uc_count = len(uc.profiles)
-        if uc_count == 0:
-            # Remove files with 0 records that aren't from today
-            if uc.created.date() != date.today():
-                if uc.active is False:
-                    continue
-        td = (uc.cache_id, uc.friendly_id, uc_count, uc.created)
-        user_files.append(td)
-    user_files = sorted(user_files, key=itemgetter(3))
+        if request.method == 'GET':
+            return render_template('user_manager.html', category=category, code=request.args.get('code'))
 
-    return render_template('file_manager.html', user_files=user_files, category=category,
-                           code=request.args.get('code'))
+        elif request.method == 'POST':
+            old = request.form.get('old_password')
+            correct_old = user.check_password(old)
+            if correct_old is False:
+                return render_template('user_manager.html', category=category, code='error_wrong')
 
+            new1 = request.form.get('new_password1')
+            new2 = request.form.get('new_password2')
 
+            if new1 != new2:
+                return render_template('user_manager.html', category=category, code='error_confirm')
+
+            if len(new1) == 0:
+                return render_template('user_manager.html', category=category, code='error_no_password')
+
+            user.generate_new_password(new1)
+            db.session.commit()
+
+            return render_template('user_manager.html', category=category, code='success')
 
 
 @app_run.route('/api/v1/token', methods=['POST'])

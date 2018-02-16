@@ -5,7 +5,7 @@ from string import ascii_letters
 from flask_login import UserMixin
 from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer, BadSignature, SignatureExpired)
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from app_folder import app_run, db
 from app_folder import login
@@ -214,6 +214,11 @@ class User(UserMixin, db.Model):
             return current_trackers[0]
         else:  # Will occur if 1 or more active trackers must be set inactive
             return False
+
+    def generate_new_password(self, new_password):
+        self.password_hash = generate_password_hash(new_password)
+        self.current_session_user = self.current_session_user + 1
+
 
 
 @login.user_loader
