@@ -1,0 +1,91 @@
+{% if code == 'error' %}
+<head>
+    <title>Record Not Found</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" type="text/css"
+          href="{{ url_for('static',filename='styles/open_resume_stackoverflow.css') }}">
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet"
+          type="text/css">
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet" type="text/css">
+</head>
+{% elif code == 'success' %}
+
+<head>
+    <title>{{data['first_name']}} {{data['last_name']}}</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" type="text/css"
+          href="{{ url_for('static',filename='styles/open_resume_stackoverflow.css') }}">
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet"
+          type="text/css">
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet" type="text/css">
+</head>
+
+<body style="">
+<div id="resume">
+    <header id="header" class="clear">
+        <div>
+            <h1 class="name">{{data['first_name']}} {{data['last_name']}}</h1>
+            <h2 class="label">{{data['title_0']}}</h2>
+        </div>
+        <span class="location">
+<span class="address"></span>
+          <span class="city">{{data['metro']}}</span>
+      <span class="postalCode">{{data['postal_code']}}</span>
+          <span class="countryCode">{{data['country_code']}}</span>
+      </span>
+        <div id="contact">
+            <div class="website">
+                <span class="fa fa-external-link"></span>
+                <a target="_blank" href="{{data['public_url']}}">{{data['public_url']}}</a>
+            </div>
+        </div>
+    </header>
+    <section class="section main-summary">
+        <section>
+            <div>
+                <p>{{data['summary']}}</p>
+            </div>
+        </section>
+    </section>
+    <section class="section margin1">
+        <header>
+            <h2 class="section-title">Skills</h2>
+        </header>
+        <section id="skills">
+            <div class="item">
+                <ul class="keywords">
+                    {% for skill in skills %}
+                    <li>{{skill}}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </section>
+        <section class="section">
+            <header>
+                <h2 class="section-title">Work Experience <span class="item-count">({{job_count}})</span></h2>
+            </header>
+            {% for job in work_history %}
+            <section id="work">
+                <section class="work-item">
+                    <input id="work-item-{{job['index']}}" type="checkbox" class="toggle-item" checked="checked">
+                    <label for="work-item-{{job['index']}}"></label>
+                    <header>
+                        <div class="position">{{job['title']}}</div>
+                        <div class="company">{{job['companyName']}}</div>
+                        <div class="date">
+                            <span class="startDate">{{job['start_date']}}</span>
+                            <span class="endDate">- {{job['end_date']}}</span>
+                        </div>
+                    </header>
+                    <div class="item" id="work-item">
+                        <div class="summary">
+                            <p></p>
+                            <p>{{job['summary']}}</p>
+                            <p></p>
+                </section>
+            </section>
+            {% endfor %}
+
+
+</div>
+</body>

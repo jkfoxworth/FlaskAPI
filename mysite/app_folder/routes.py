@@ -425,6 +425,65 @@ def manage_self(category):
 
             return render_template('user_manager.html', category=category, code='success')
 
+@app_run.route('/resumes/<member_id>')
+@login_required
+def show_resume(member_id):
+    member_id = int(member_id)
+    member = LinkedInRecord.query.filter_by(member_id=member_id).first()
+    if not member_id:
+        return render_template('open_resume.html', code='error')
+
+    # build dict for template
+    data = {}
+    data['first_name'] = member.first_name
+    data['last_name'] = member.last_name
+    data['title_0'] = member.title_0
+    data['metro'] = member.metro
+    data['postal_code'] = member.postal_code
+    data['country_code'] = member.country_code
+    data['public_url'] = member.public_url
+    data['summary'] = member.summary
+    data['skills'] = member.skills.split(', ')
+    data['work_history'], data['job_count'] = build_work_history(member)
+
+    return render_template('open_resume.html', code='success', data=data)
+
+def build_work_history(member):
+    history = []
+
+    for i in range(3):
+        companyName = 'companyName_{}'.format(i)
+        title = 'title_{}'.format(i)
+        start_date = 'start_date_{}'.format(i)
+        end_date = 'end_date_{}'.format(i)
+        summary = 'summary_{}'.format(i)
+
+        td = {}
+        td['title'] = getattr(member, title)
+        td['companyName'] = getattr(member, companyName)
+        try:
+            td['start_date'] = getattr(member, start_date).strftime('%b %Y')
+        except:
+            td['start_date'] = None
+        try:
+            td['end_date'] = getattr(member, end_date)
+        except:
+            td['end_date'] = None
+        td['summary'] = getattr(member, summary)
+
+        if not any(td.values()):  # If nothing would be included
+            continue
+        else:
+            td['index'] = i
+            for k, v in td.items():
+                if v is None:
+                    td[k] = ''
+
+        history.append(td)
+    return history, len(history)
+
+
+
 
 @app_run.route('/api/v1/token', methods=['POST'])
 def get_auth_token():
