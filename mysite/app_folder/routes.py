@@ -467,8 +467,7 @@ def build_work_history(member):
             td['start_date'] = None
         end_date_data = getattr(member, end_date)
         if not end_date_data:
-            if i == 0:
-                td['end_date'] = 'Present'
+            td['end_date'] = 'Present'
         else:
             try:
                 td['end_date'] = getattr(member, end_date).strftime('%b %Y')
@@ -480,10 +479,6 @@ def build_work_history(member):
             continue
         else:
             td['index'] = i
-            for k, v in td.items():
-                if v is None:
-                    td[k] = ''
-
         history.append(td)
     return history, len(history)
 

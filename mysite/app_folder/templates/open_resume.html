@@ -29,17 +29,26 @@
         </div>
         <span class="location">
 <span class="address"></span>
+            {% if data['metro'] is not none %}
           <span class="city">{{data['metro']}}</span>
+            {% endif %}
+            {% if data['postal_code'] is not none %}
       <span class="postalCode">{{data['postal_code']}}</span>
+            {% endif %}
+            {% if data['country_code'] is not none %}
           <span class="countryCode">{{data['country_code']}}</span>
+            {% endif %}
       </span>
+        {% if data['public_url'] is not none %}
         <div id="contact">
             <div class="website">
                 <span class="fa fa-external-link"></span>
                 <a target="_blank" href="{{data['public_url']}}">{{data['public_url']}}</a>
             </div>
         </div>
+        {% endif %}
     </header>
+    {% if data['summary'] is not none %}
     <section class="section main-summary">
         <section>
             <div>
@@ -47,6 +56,8 @@
             </div>
         </section>
     </section>
+    {% endif %}
+    {% if data['skills'] is not none %}
     <section class="section margin1">
         <header>
             <h2 class="section-title">Skills</h2>
@@ -61,6 +72,7 @@
 
         </section>
     </section>
+    {% endif %}
         <section class="section">
             <header>
                 <h2 class="section-title">Work Experience <span class="item-count">({{job_count}})</span></h2>
@@ -68,23 +80,47 @@
             {% for job in data['work_history'] %}
             <section id="work">
                 <section class="work-item">
+                    {% if job['summary'] is not none %}
                     <input id="work-item-{{job['index']}}" type="checkbox" class="toggle-item" checked="checked">
+                    {% else %}
+                    <input id="work-item-{{job['index']}}" type="checkbox" class="toggle-item">
+                    {% endif %}
                     <label for="work-item-{{job['index']}}"></label>
                     <header>
+                        {% if job['title'] is not none %}
                         <div class="position">{{job['title']}}</div>
+                        {% endif %}
+                        {% if job['companyName'] is not none %}
                         <div class="company">{{job['companyName']}}</div>
+                        {% endif %}
                         <div class="date">
+                            {% if job['start_date'] is not none %}
                             <span class="startDate">{{job['start_date']}}</span>
+                            {% else %}
+                            <span class="startDate"></span>
+                            {% endif %}
+                            {% if job['end_date'] is not none %}
                             <span class="endDate">- {{job['end_date']}}</span>
+                            {% endif %}
                         </div>
                     </header>
-                    <div class="item" id="work-item">
+                    {% if job['summary'] is not none %}
+                    <div class="item" id="work-item-{{job['index']}}">
                         <div class="summary">
                             <p></p>
                             <p>{{job['summary']}}</p>
                             <p></p>
                         </div>
                     </div>
+                    {% else %}
+                    <div class="item" id="work-item-{{job['index']}}">
+                        <div class="summary">
+                            <p></p>
+                            <p></p>
+                            <p></p>
+                        </div>
+                    </div>
+                    {% endif %}
                 </section>
             </section>
 
