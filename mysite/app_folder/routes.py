@@ -440,7 +440,7 @@ def show_resume(member_id):
     data['title_0'] = member.title_0
     data['metro'] = member.metro
     data['postal_code'] = member.postal_code
-    data['country_code'] = member.country_code
+    data['country_code'] = member.country_code.upper()
     data['public_url'] = member.public_url
     data['summary'] = member.summary
     data['skills'] = member.skills.split(', ')
@@ -463,12 +463,17 @@ def build_work_history(member):
         td['companyName'] = getattr(member, companyName)
         try:
             td['start_date'] = getattr(member, start_date).strftime('%b %Y')
-        except:
+        except AttributeError:
             td['start_date'] = None
-        try:
-            td['end_date'] = getattr(member, end_date)
-        except:
-            td['end_date'] = None
+        end_date_data = getattr(member, end_date)
+        if not end_date_data:
+            if i == 0:
+                td['end_date'] = 'Present'
+        else:
+            try:
+                td['end_date'] = getattr(member, end_date).strftime('%b %Y')
+            except AttributeError:
+                td['end_data'] = None
         td['summary'] = getattr(member, summary)
 
         if not any(td.values()):  # If nothing would be included

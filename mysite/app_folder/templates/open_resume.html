@@ -52,19 +52,20 @@
             <h2 class="section-title">Skills</h2>
         </header>
         <section id="skills">
-            <div class="item">
-                <ul class="keywords">
-                    {% for skill in skills %}
-                    <li>{{skill}}</li>
-                    {% endfor %}
-                </ul>
-            </div>
+
+            <ul class="keywords">
+                {% for skill in data['skills'] %}
+                <li>{{skill}}</li>
+                {% endfor %}
+            </ul>
+
         </section>
+    </section>
         <section class="section">
             <header>
                 <h2 class="section-title">Work Experience <span class="item-count">({{job_count}})</span></h2>
             </header>
-            {% for job in work_history %}
+            {% for job in data['work_history'] %}
             <section id="work">
                 <section class="work-item">
                     <input id="work-item-{{job['index']}}" type="checkbox" class="toggle-item" checked="checked">
@@ -82,10 +83,14 @@
                             <p></p>
                             <p>{{job['summary']}}</p>
                             <p></p>
+                        </div>
+                    </div>
                 </section>
             </section>
+
             {% endfor %}
-
-
+        </section>
 </div>
 </body>
+{% endif %}
+
