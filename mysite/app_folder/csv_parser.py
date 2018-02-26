@@ -5,9 +5,7 @@ import pandas as pd
 
 
 def db_to_csv(data):
-    # with open(r"/home/estasney1/mysite/app_folder/country_codes.pkl", "rb") as cc:
-    #     country_dict = pickle.load(cc)
-    with open(r"C:\Users\estasney\PycharmProjects\FlaskAPIWeb\mysite\app_folder\country_codes.pkl", "rb") as cc:
+    with open(r"/home/estasney1/mysite/app_folder/country_codes.pkl", "rb") as cc:
         country_dict = pickle.load(cc)
     df = pd.DataFrame(data)
     df2 = pd.DataFrame(columns=['Full Name', 'First Name', 'Last Name', 'Metropolitan Area',
@@ -98,4 +96,4 @@ def boolean_to_string(x):
             return ''
 
 def make_hermes_link(x):
-    return 'http://127.0.0.1:5000/resumes/{}'.format(x)
+    return 'https://estasney1.pythonanywhere.com/resumes/{}'.format(x)
