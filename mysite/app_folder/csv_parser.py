@@ -34,6 +34,7 @@ def db_to_csv(data):
     df2['Summary'] = df['summary']
     df2['Website'] = df['public_url']
     df2['Resume'] = df.apply(make_resume, axis=1)
+    df2['Hermes Resume'] = df['member_id'].apply(lambda x: make_hermes_link(x))
     df2['Base64-encoded attachment Name'] = df['member_id'] + ".rtf"
     df2['Base64-encoded attachment content'] = df.apply(make_resume_b64, axis=1)
 
@@ -93,3 +94,6 @@ def boolean_to_string(x):
             return 'No'
         elif x is None or x == '':
             return ''
+
+def make_hermes_link(x):
+    return 'https://estasney1.pythonanywhere.com/resumes/{}'.format(x)
