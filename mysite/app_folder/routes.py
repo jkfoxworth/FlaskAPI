@@ -473,7 +473,7 @@ def build_work_history(member):
             try:
                 td['end_date'] = getattr(member, end_date).strftime('%b %Y')
             except AttributeError:
-                td['end_data'] = None
+                td['end_date'] = None
         td['summary'] = getattr(member, summary)
 
         if not any(td.values()):  # If nothing would be included
