@@ -62,7 +62,7 @@ def make_resume_b64(row):
                                   end_date_1=row.end_date_1, summary_1=row.summary_1, title_2=row.title_2,
                                   companyName_2=row.companyName_2, start_date_2=row.start_date_2,
                                   end_date_2=row.end_date_2, summary_2=row.summary_2)
-    return base64.b64encode(resume.encode())
+    return base64.b64encode(resume.encode()).decode('ascii')
 
 
 def make_resume(row):
