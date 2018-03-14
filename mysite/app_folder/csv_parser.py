@@ -21,7 +21,7 @@ def db_to_csv(data):
     df2['First Name'] = df['first_name']
     df2['Last Name'] = df['last_name']
     df2['Metropolitan Area'] = df['metro']
-    df2['Home State'] = df['postal_code'].apply(lambda x: zip_dict.get(x, ''))
+    df2['Home State'] = df['postal_code'].astype(int).apply(lambda x: zip_dict.get(x, ''))
     df2['Home Postal Code'] = df['postal_code'].astype(str).apply(lambda x: x.zfill(5))
     df2['Home Country'] = df['country_code'].apply(lambda x: country_dict.get(x, ''))  # Use country code dict
     df2['Skills and Technologies'] = df['skills']
