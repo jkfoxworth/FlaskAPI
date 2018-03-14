@@ -7,6 +7,8 @@ import pandas as pd
 def db_to_csv(data):
     with open(r"/home/estasney1/mysite/app_folder/country_codes.pkl", "rb") as cc:
         country_dict = pickle.load(cc)
+    with open(r"/home/estasney1/mysite/app_folder/zips_to_states.pkl", "rb") as zd:
+        zip_dict = pickle.load(zd)
     df = pd.DataFrame(data)
     df2 = pd.DataFrame(columns=['Full Name', 'First Name', 'Last Name', 'Metropolitan Area',
                                 'Home State', 'Home Postal Code', 'Home Country', 'Theater', 'Skills and Technologies',
@@ -19,8 +21,9 @@ def db_to_csv(data):
     df2['First Name'] = df['first_name']
     df2['Last Name'] = df['last_name']
     df2['Metropolitan Area'] = df['metro']
-    df2['Home Postal Code'] = df['postal_code'].astype(str)
-    df2['Home Country'] = df['country_code'].apply(lambda x: country_dict[x])  # Use country code dict
+    df2['Home State'] = df['postal_code'].apply(lambda x: zip_dict.get(x, ''))
+    df2['Home Postal Code'] = df['postal_code'].astype(str).apply(lambda x: x.zfill(5))
+    df2['Home Country'] = df['country_code'].apply(lambda x: country_dict.get(x, ''))  # Use country code dict
     df2['Skills and Technologies'] = df['skills']
     df2['Company'] = df['companyName_0']
     df2['Position Title'] = df['title_0']
