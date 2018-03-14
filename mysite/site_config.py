@@ -10,3 +10,7 @@ class Config(object):
     DEBUG = True
     DEBUG_TB_PROFILER_ENABLED = True
     DEBUG_TB_INTERCEPT_REDIRECTS = False
+
+class FConfig(object):
+    COUNTRY_DICT = r"C:\Users\estasney\PycharmProjects\FlaskAPIWeb\mysite\app_folder\country_codes.pkl"
+    ZIP_DICT = r"C:\Users\estasney\PycharmProjects\FlaskAPIWeb\mysite\app_folder\zips_to_states.pkl"

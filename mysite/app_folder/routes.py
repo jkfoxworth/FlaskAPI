@@ -228,7 +228,8 @@ def serve_file(cache_id):
     csv_text = csv_parser.db_to_csv(data)
     csv_text = "\uFEFF" + csv_text
     return Response(csv_text, mimetype="text/csv",
-                    headers={"Content-disposition": "attachment; filename={}.csv".format(cache_file_name),
+                    headers={"Content-type": "application/vnd.ms-excel",
+                             "Content-disposition": "attachment; filename={}.csv".format(cache_file_name),
                              'charset': 'utf-8'})
 
 
