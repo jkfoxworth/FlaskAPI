@@ -20,6 +20,30 @@ Cache_Records = db.Table('Cache_Records',
                          db.Column('member_id', db.Integer, db.ForeignKey('Profiles.member_id'), primary_key=True)
                          )
 
+# TODO Relationship Record to Positions
+# TODO Relationship To Education
+# TODO Companies as Entities
+# TODO Relationship Metro
+
+class Job(db.Model):
+
+    __tablename__ = 'jobs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    current = db.Column(db.Boolean)
+    title = db.relationship("JobTitle", uselist=False, back_populates="job")
+    company = db.relationship("Company", uselist=False, back_populates="jobs")
+    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'))
+    start_date = db.Column(db.Date)
+    end_date = db.Column(db.Date)
+    text = db.Column(db.Text)
+    member_id = db.Column(db.Integer, db.ForeignKey('Profiles.id'))
+    member = relationship("Member", back_populates="positions")
+
+
+
+
+
 
 class LinkedInRecord(db.Model):
     """
@@ -30,6 +54,9 @@ class LinkedInRecord(db.Model):
     first_name = db.Column(db.String(128))
     last_name = db.Column(db.String(128))
     summary = db.Column(db.Text)
+
+    positions = db.relationship("Job", back_populates="resume")
+
 
     metro = db.Column(db.Text)
     postal_code = db.Column(db.Text)
