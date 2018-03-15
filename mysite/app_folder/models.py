@@ -20,6 +20,12 @@ Cache_Records = db.Table('Cache_Records',
                          db.Column('member_id', db.Integer, db.ForeignKey('Profiles.member_id'), primary_key=True)
                          )
 
+profile_skill_table = db.Table('profile_skill',
+                               db.Column('skill_id', db.Integer, db.ForeignKey('Skill.id'), primary_key=True),
+                               db.Column('member_id', db.Integer, db.ForeignKey('Profiles.member_id'), primary_key=True)
+                               )
+
+
 # TODO Relationship Record to Positions
 
 
@@ -39,7 +45,6 @@ class Job(db.Model):
     member:
     """
 
-
     __tablename__ = 'jobs'
     id = db.Column(db.Integer, primary_key=True)
     current = db.Column(db.Boolean)
@@ -50,30 +55,53 @@ class Job(db.Model):
     end_date = db.Column(db.Date, nullable=True)
     text = db.Column(db.Text)
     member_id = db.Column(db.Integer, db.ForeignKey('Profiles.id'))
-    member = db.relationship("Member", back_populates="positions")
+    member = db.relationship("LinkedInRecord", back_populates="positions")
 
 
 class Company(db.Model):
     __tablename__ = 'companies'
     id = db.Column(db.Integer, primary_key=True)
-    company_names = db.relationship("CompanyName", back_populates="common_name")
+    company_names = db.relationship("CompanyName", back_populates="company")
+    external_identifiers = db.relationship("CompanyIdentifier", back_populates="company")
     partner_id = db.Column(db.Integer, nullable=True)
     jobs = db.relationship("Job", back_populates="company")
 
 
-# TODO Company Names
+class CompanyIdentifier(db.Model):
+    __tablename__ = "company_identifies"
+    id = db.Column(db.Integer, primary_key=True)
+    id_type = db.Column(db.Text)
+    data = db.Column(db.Text)
+    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'))
+    company = db.relationship("Company", uselist=False, back_populates="external_identifiers")
+
 
 class CompanyName(db.Model):
     __tablename__ = 'company_names'
     id = db.Column(db.Integer, primary_key=True)
     company_id = db.Column(db.Integer, db.ForeignKey('companies.id'))
-    common_name = db.relationship("Company", uselist=False, back_populates="company_names")
-
-# TODO Education
-
-# TODO Skills
+    company = db.relationship("Company", uselist=False, back_populates="company_names")
+    name = db.Column(db.Text)
 
 
+class Education(db.Model):
+    __tablename__ = 'educations'
+    id = db.Column(db.Integer, primary_key=True)
+    education_school = db.Column(db.Text)
+    education_start = db.Column(db.Date)
+    education_end = db.Column(db.Date)
+    education_degree = db.Column(db.Text)
+    education_study_field = db.Column(db.Text)
+    member_id = db.Column(db.Integer, db.ForeignKey('Profiles.id'))
+    member = db.relationship("LinkedInRecord", back_populates="educations", uselist=False)
+
+
+class Skill(db.Model):
+    __tablename__ = 'skills'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.Text)
+    members = db.relationship("LinkedInRecord", secondary=profile_skill_table, backpopulates="skills")
 
 
 class LinkedInRecord(db.Model):
@@ -86,45 +114,19 @@ class LinkedInRecord(db.Model):
     last_name = db.Column(db.String(128))
     summary = db.Column(db.Text)
 
-    positions = db.relationship("Job", back_populates="resume")
+    positions = db.relationship("Job", back_populates="member")
 
-
+    skills = db.relationship("Skill", secondary=profile_skill_table, back_populates="members")
     metro = db.Column(db.Text)
     postal_code = db.Column(db.Text)
     country_code = db.Column(db.Text)
     language = db.Column(db.Text)
     industry = db.Column(db.Text)
-    skills = db.Column(db.Text)
-
-    companyName_0 = db.Column(db.Text)
-    companyUrl_0 = db.Column(db.Text)
-    title_0 = db.Column(db.Text)
-    start_date_0 = db.Column(db.Date)
-    end_date_0 = db.Column(db.Date)
-    summary_0 = db.Column(db.Text)
-
-    companyName_1 = db.Column(db.Text)
-    companyUrl_1 = db.Column(db.Text)
-    title_1 = db.Column(db.Text)
-    start_date_1 = db.Column(db.Date)
-    end_date_1 = db.Column(db.Date)
-    summary_1 = db.Column(db.Text)
-
-    companyName_2 = db.Column(db.Text)
-    companyUrl_2 = db.Column(db.Text)
-    title_2 = db.Column(db.Text)
-    start_date_2 = db.Column(db.Date)
-    end_date_2 = db.Column(db.Date)
-    summary_2 = db.Column(db.Text)
 
     created = db.Column(db.Date, default=date.today())
     updated = db.Column(db.Date, default=None)
 
-    education_school = db.Column(db.Text)
-    education_start = db.Column(db.Date)
-    education_end = db.Column(db.Date)
-    education_degree = db.Column(db.Text)
-    education_study_field = db.Column(db.Text)
+    educations = db.relationship("Education", back_populates="member")
 
     first_graduation_date = db.Column(db.Date)
 
