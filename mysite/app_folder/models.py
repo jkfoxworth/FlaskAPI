@@ -21,26 +21,57 @@ Cache_Records = db.Table('Cache_Records',
                          )
 
 # TODO Relationship Record to Positions
-# TODO Relationship To Education
-# TODO Companies as Entities
-# TODO Relationship Metro
+
 
 class Job(db.Model):
+    """
+    Many-to-One : LinkedInProfile
+    One-to-One : Company
+
+    current: Most current position?
+    title: Job Title
+    company: The associated company
+    company_id: company id key
+    start_date:
+    end_date:
+    text: Job description
+    member_id:
+    member:
+    """
+
 
     __tablename__ = 'jobs'
-
     id = db.Column(db.Integer, primary_key=True)
     current = db.Column(db.Boolean)
-    title = db.relationship("JobTitle", uselist=False, back_populates="job")
+    title = db.Column(db.Text)
     company = db.relationship("Company", uselist=False, back_populates="jobs")
     company_id = db.Column(db.Integer, db.ForeignKey('companies.id'))
-    start_date = db.Column(db.Date)
-    end_date = db.Column(db.Date)
+    start_date = db.Column(db.Date, nullable=True)
+    end_date = db.Column(db.Date, nullable=True)
     text = db.Column(db.Text)
     member_id = db.Column(db.Integer, db.ForeignKey('Profiles.id'))
-    member = relationship("Member", back_populates="positions")
+    member = db.relationship("Member", back_populates="positions")
 
 
+class Company(db.Model):
+    __tablename__ = 'companies'
+    id = db.Column(db.Integer, primary_key=True)
+    company_names = db.relationship("CompanyName", back_populates="common_name")
+    partner_id = db.Column(db.Integer, nullable=True)
+    jobs = db.relationship("Job", back_populates="company")
+
+
+# TODO Company Names
+
+class CompanyName(db.Model):
+    __tablename__ = 'company_names'
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'))
+    common_name = db.relationship("Company", uselist=False, back_populates="company_names")
+
+# TODO Education
+
+# TODO Skills
 
 
 
