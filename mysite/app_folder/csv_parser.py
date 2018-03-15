@@ -130,7 +130,7 @@ def df_to_xlsx(df):
     output = io.BytesIO()
 
     writer = pd.ExcelWriter(output, engine='xlsxwriter')
-    df.to_excel(writer, sheet_name='Sheet1')
+    df.to_excel(writer, sheet_name='Sheet1', index=False)
     workbook = writer.book
     worksheet = writer.sheets['Sheet1']
     postal_format = workbook.add_format({'num_format': '00000'})

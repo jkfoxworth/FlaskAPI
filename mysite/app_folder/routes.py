@@ -11,7 +11,7 @@ from itsdangerous import (TimedJSONWebSignatureSerializer
 from werkzeug.datastructures import Headers
 
 from app_folder import app_run, db, login, csv_parser, profile_parser, request_pruner
-from app_folder.models import User, LinkedInRecord, UserCache, UserActivity
+from app_folder.models import User, LinkedInRecord, UserCache, UserActivity, Cache_Records
 
 
 def requires_key(func):
@@ -180,7 +180,7 @@ def fetch_user_caches_view():
             is_active = 'Yes'
         else:
             is_active = 'No'
-        uc_count = len(uc.profiles)
+        uc_count = db.session.query(Cache_Records).filter_by(cache_id=uc.cache_id).count()
         td = (uc.cache_id, uc.friendly_id, uc_count, uc.created, is_active)
         user_files.append(td)
     user_files = sorted(user_files, key=itemgetter(4, 3), reverse=True)
@@ -275,7 +275,7 @@ def file_manager(category):
     user_files = []
     for uc in users_caches:
         # Get count just once, expensive. If 0, skip it
-        uc_count = len(uc.profiles)
+        uc_count = db.session.query(Cache_Records).filter_by(cache_id=uc.cache_id).count()
         if uc_count == 0:
             # Remove files with 0 records that aren't from today
             if uc.created.date() != date.today():
