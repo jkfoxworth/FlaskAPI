@@ -5,7 +5,7 @@ import pandas as pd
 from site_config import FConfig
 
 
-def db_to_csv(data):
+def db_to_df(data):
     with open(FConfig.COUNTRY_DICT, "rb") as cc:
         country_dict = pickle.load(cc)
     with open(FConfig.ZIP_DICT, "rb") as zd:
@@ -44,7 +44,7 @@ def db_to_csv(data):
     df2['Base64-encoded attachment Name'] = df['member_id'] + ".rtf"
     df2['Base64-encoded attachment content'] = df.apply(make_resume_b64, axis=1)
 
-    return df2.to_csv(index=False)
+    return df2
 
 # Content
 

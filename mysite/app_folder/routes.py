@@ -225,7 +225,7 @@ def serve_file(cache_id):
     for prof in cached_data:
         data.append(row2dict(prof))
 
-    csv_text = csv_parser.db_to_csv(data)
+    csv_text = csv_parser.db_to_df(data)
     csv_text = "\uFEFF" + csv_text
     return Response(csv_text, mimetype="text/csv",
                     headers={"Content-type": "application/vnd.ms-excel",
