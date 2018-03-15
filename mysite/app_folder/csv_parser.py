@@ -1,12 +1,17 @@
 import base64
+import io
 import pickle
 
 import pandas as pd
 
+from site_config import FConfig
 
-def db_to_csv(data):
-    with open(r"/home/estasney1/mysite/app_folder/country_codes.pkl", "rb") as cc:
+
+def db_to_df(data):
+    with open(FConfig.COUNTRY_DICT, "rb") as cc:
         country_dict = pickle.load(cc)
+    with open(FConfig.ZIP_DICT, "rb") as zd:
+        zip_dict = pickle.load(zd)
     df = pd.DataFrame(data)
     df2 = pd.DataFrame(columns=['Full Name', 'First Name', 'Last Name', 'Metropolitan Area',
                                 'Home State', 'Home Postal Code', 'Home Country', 'Theater', 'Skills and Technologies',
@@ -19,8 +24,11 @@ def db_to_csv(data):
     df2['First Name'] = df['first_name']
     df2['Last Name'] = df['last_name']
     df2['Metropolitan Area'] = df['metro']
-    df2['Home Postal Code'] = df['postal_code'].astype(str)
-    df2['Home Country'] = df['country_code'].apply(lambda x: country_dict[x])  # Use country code dict
+    post_int = df['postal_code'].apply(lambda x: to_int(x))
+    df2['Home State'] = post_int.apply(lambda x: zip_dict.get(x, ''))
+    del post_int
+    df2['Home Postal Code'] = df['postal_code'].astype(str).apply(lambda x: x.zfill(5))
+    df2['Home Country'] = df['country_code'].apply(lambda x: country_dict.get(x, ''))  # Use country code dict
     df2['Skills and Technologies'] = df['skills']
     df2['Company'] = df['companyName_0']
     df2['Position Title'] = df['title_0']
@@ -38,7 +46,7 @@ def db_to_csv(data):
     df2['Base64-encoded attachment Name'] = df['member_id'] + ".rtf"
     df2['Base64-encoded attachment content'] = df.apply(make_resume_b64, axis=1)
 
-    return df2.to_csv(index=False)
+    return df2
 
 # Content
 
@@ -97,3 +105,39 @@ def boolean_to_string(x):
 
 def make_hermes_link(x):
     return 'https://estasney1.pythonanywhere.com/resumes/{}'.format(x)
+
+def to_int(x):
+    try:
+        x = int(x)
+        return x
+    except ValueError:
+        return 0
+
+def db_to_xlsx(data):
+    df = db_to_df(data)
+    del data
+    xlsx_data = df_to_xlsx(df)
+    return xlsx_data
+
+def df_to_xlsx(df):
+    """
+    Handles conversion of dataframe to excel
+    Uses xlsxwriter to apply zip code formatting
+
+    :param df: pandas dataframe
+    :return: binary, xlsx data
+    """
+    output = io.BytesIO()
+
+    writer = pd.ExcelWriter(output, engine='xlsxwriter')
+    df.to_excel(writer, sheet_name='Sheet1')
+    workbook = writer.book
+    worksheet = writer.sheets['Sheet1']
+    postal_format = workbook.add_format({'num_format': '00000'})
+    worksheet.set_column('F:F', None, postal_format)
+    writer.close()
+    del writer
+
+    # Seek to beginning of stream
+    output.seek(0)
+    return output

@@ -1,4 +1,5 @@
 import base64
+import mimetypes
 from datetime import date, timedelta
 from functools import wraps
 from operator import itemgetter
@@ -7,6 +8,7 @@ from flask import render_template, redirect, url_for, request, abort, jsonify, R
 from flask_login import login_user, current_user, logout_user, login_required
 from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer)
+from werkzeug.datastructures import Headers
 
 from app_folder import app_run, db, login, csv_parser, profile_parser, request_pruner
 from app_folder.models import User, LinkedInRecord, UserCache, UserActivity
@@ -17,10 +19,8 @@ def requires_key(func):
     def wrapped(*args, **kwargs):
         api_key = request.headers.get('Api-Key', False)
         if api_key is False:
-            print("No API-Key")
             abort(400)
         if User.verify_auth_token(api_key) is False:
-            print("Bad Key")
             abort(401)
         elif User.verify_auth_token(api_key) is None:
             abort(401)
@@ -225,11 +225,43 @@ def serve_file(cache_id):
     for prof in cached_data:
         data.append(row2dict(prof))
 
-    csv_text = csv_parser.db_to_csv(data)
-    csv_text = "\uFEFF" + csv_text
-    return Response(csv_text, mimetype="text/csv",
-                    headers={"Content-disposition": "attachment; filename={}.csv".format(cache_file_name),
-                             'charset': 'utf-8'})
+    xlsx_stream = csv_parser.db_to_xlsx(data)
+
+    # Flask response
+    response = Response()
+    response.status_code = 200
+
+    # Add output to response
+    response.data = xlsx_stream.read()
+
+    # Set filename and mimetype
+    file_name = "{}.xlsx".format(cache_file_name)
+    mimetype_tuple = mimetypes.guess_type(file_name)
+
+    # HTTP headers for forcing file download
+    response_headers = Headers({
+        'Pragma': "public",  # required,
+        'Expires': '0',
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': 'attachment; filename=\"%s\";' % file_name,
+        'Content-Transfer-Encoding': 'binary',
+        'Content-Length': len(response.data)
+    })
+
+    if not mimetype_tuple[1] is None:
+        response.update({
+            'Content-Encoding': mimetype_tuple[1]
+        })
+
+    # Add headers
+    response.headers = response_headers
+
+    # jquery.fileDownload.js requirements
+    response.set_cookie('fileDownload', 'true', path='/')
+
+    # Return the response
+
+    return response
 
 
 @app_run.route('/manage/files/<category>', methods=['GET'])
@@ -496,7 +528,6 @@ def get_auth_token():
         elif isinstance(token, bytes):
             return jsonify({'token': token.decode('ascii')})
     else:
-        print("User not found from token")
         return abort(401)
 
 
@@ -512,7 +543,6 @@ def profile():
 
     if not request.json:
         abort(400)
-        print("Request not JSON")
 
     data = request.json
     parsed_data = profile_parser.LinkedInProfile(data)
@@ -527,7 +557,6 @@ def profile():
     matched_records = LinkedInRecord.query.filter_by(member_id=profile_record.member_id).first()
 
     if matched_records:
-        print("Handled update")
         profile_record = handle_update(profile_record)
 
     # Done with record, add it to session
@@ -586,7 +615,6 @@ def profile():
 @requires_key
 def prune():
     data = request.json['data']
-    print("User submits {}".format(data))
 
     profile_pruner = request_pruner.ProfilePruner(data)
     pruned_urls = []
@@ -621,13 +649,10 @@ def prune():
     def prune_record(lookup_result):
         created_date = lookup_result.created
         if created_date is None:
-            print("{} Record is Incomplete".format(lookup_result))
             return True  # incomplete record, get it
         if (date.today() - created_date).days >= profile_pruner.RECORD_IS_OLD:
-            print("{} Record is Old".format(lookup_result))
             return True  # old record, get it
         else:
-            print("{} Record is Duplicate".format(lookup_result))
             return False  # don't get it
 
     append_to_cache_bin = []
@@ -637,7 +662,6 @@ def prune():
         lookup_result = LinkedInRecord.query.filter_by(member_id=member_id).first()
         if lookup_result:
             if prune_record(lookup_result) is False:
-                print("We have {} in database".format(lookup_result))
                 # We don't want to fetch it
                 # But we want to create association
                 # Get the user's active cache
