@@ -170,7 +170,8 @@ class LinkedInProfile(object):
                 return edu
 
         def filter_keys(edu):
-            filtered_edu = {k: v for k, v}
+            filtered_edu = {k: v for k, v in edu.items() if k in accept_edu_keys}
+            return filtered_edu
 
         parsed_educations = list(map(past_or_present, educations))
 
@@ -180,15 +181,15 @@ class LinkedInProfile(object):
             # Check if any have end year
             if any(list(filter(lambda x: 'endDateYear' in x, previous_edu))):
                 temp_edu = list(filter(lambda x: 'endDateYear' in x, previous_edu))
-                sorted_previous = sorted(previous_edu, key=lambda x: x['endDateYear'])  # Sort for earliest
+                sorted_previous = sorted(temp_edu, key=lambda x: x['endDateYear'])  # Sort for earliest
                 previous_edu = sorted_previous[0]  # 0 result will be earliest
                 grad_year = previous_edu.get('endDateYear', None)
                 if grad_year:
                     self.first_graduation_date = date(year=grad_year, month=5, day=1)
 
         # Filter out junk keys
-
-        return parsed_educations
+        filtered_educations = list(map(filter_keys, parsed_educations))
+        return filtered_educations
 
     def parse_location(self, geo_url):
         if geo_url is False:
