@@ -47,13 +47,13 @@ class Job(db.Model):
 
     __tablename__ = 'jobs'
     id = db.Column(db.Integer, primary_key=True)
-    current = db.Column(db.Boolean)
+    current = db.Column(db.Boolean, nullabe=True)
     title = db.Column(db.Text)
     company = db.relationship("Company", uselist=False, back_populates="jobs")
     company_id = db.Column(db.Integer, db.ForeignKey('companies.id'))
     start_date = db.Column(db.Date, nullable=True)
     end_date = db.Column(db.Date, nullable=True)
-    text = db.Column(db.Text)
+    summary = db.Column(db.Text)
     member_id = db.Column(db.Integer, db.ForeignKey('Profiles.id'))
     member = db.relationship("LinkedInRecord", back_populates="positions")
 
@@ -62,18 +62,9 @@ class Company(db.Model):
     __tablename__ = 'companies'
     id = db.Column(db.Integer, primary_key=True)
     company_names = db.relationship("CompanyName", back_populates="company")
-    external_identifiers = db.relationship("CompanyIdentifier", back_populates="company")
+    external_identifiers = db.Column(db.Integer, nullable=True)
     partner_id = db.Column(db.Integer, nullable=True)
     jobs = db.relationship("Job", back_populates="company")
-
-
-class CompanyIdentifier(db.Model):
-    __tablename__ = "company_identifies"
-    id = db.Column(db.Integer, primary_key=True)
-    id_type = db.Column(db.Text)
-    data = db.Column(db.Text)
-    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'))
-    company = db.relationship("Company", uselist=False, back_populates="external_identifiers")
 
 
 class CompanyName(db.Model):
@@ -113,50 +104,79 @@ class LinkedInRecord(db.Model):
     member_id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(128))
     last_name = db.Column(db.String(128))
-    summary = db.Column(db.Text)
-
-    positions = db.relationship("Job", back_populates="member")
-
-    skills = db.relationship("Skill", secondary=profile_skill_table, back_populates="members")
+    created = db.Column(db.Date, default=date.today())
+    updated = db.Column(db.Date, default=None)
     metro = db.Column(db.Text)
     postal_code = db.Column(db.Text)
     country_code = db.Column(db.Text)
+    summary = db.Column(db.Text)
     language = db.Column(db.Text)
     industry = db.Column(db.Text)
-
-    created = db.Column(db.Date, default=date.today())
-    updated = db.Column(db.Date, default=None)
-
-    educations = db.relationship("Education", back_populates="member")
-
     first_graduation_date = db.Column(db.Date)
-
     public_url = db.Column(db.Text)
     recruiter_url = db.Column(db.Text)
-
     isCompanyFollower = db.Column(db.Boolean)
     careerInterests = db.Column(db.Boolean)
+
+    positions = db.relationship("Job", back_populates="member")
+    skills = db.relationship("Skill", secondary=profile_skill_table, back_populates="members")
+    educations = db.relationship("Education", back_populates="member")
+
 
     def __init__(self, LinkedInProfile):
         """
         :param LinkedInProfile:
         """
-        for k, v in LinkedInProfile.__dict__.items():
-            if k[0] == '_':  # Include or exclude properties based on _prop naming convention
-                continue
-            if v:
-                pass  # Avoids overwriting data with None
-            else:
-                continue
-            try:
-                setattr(self, k, v)
-            except AttributeError:
-                self._set_entry(k, v)
 
-    def _set_entry(self, k, v):
-        # Handles if Table object is intended to be internal
-        k_ = "_" + k
-        setattr(self, k_, v)
+        ready_keys = ['member_id', 'first_name', 'last_name', 'created', 'updated', 'metro', 'postal_code',
+                      'country_code', 'summary', 'language', 'industry', 'first_graduation_date', 'public_url',
+                      'recruiter_url', 'isCompanyFollower', 'careerInterests']
+
+        rel_keys = ['positions', 'skills', 'educations']
+
+        # Straight forward mapping
+        for rk in ready_keys:
+            v = getattr(LinkedInProfile, rk, None)
+            if not v:
+                # Prevent overwriting potentially existing data with None
+                continue
+            setattr(self, rk, v)
+
+        # Relational keys
+        # Positions
+        position_data = getattr(LinkedInProfile, 'positions', None)
+        if position_data:
+
+
+
+    def make_job(self, pd):
+
+        ready_keys = ['current', 'job_title', 'start_date', 'end_date']
+        job_keys = ['current', 'job_title', 'companyName', 'companyUrl', 'companyId', 'start_date', 'end_date',
+                    'summary']
+
+        job = Job()
+        for rk in ready_keys:
+            if rk in pd:
+                setattr(job, rk, pd[rk])
+        db.session.add(job)
+
+
+        self.positions.append(job)
+
+    def lookup_company(self, pd):
+        if 'companyId' in pd:
+            company_result = Company.query.filter_by(external_identifiers=company_id).first()
+            if company_result:
+                return company_result
+            else:
+                return False
+
+    def make_company(self):
+
+
+
+
 
 
 class UserCache(db.Model):

@@ -18,21 +18,18 @@ class LinkedInProfile(object):
         self.metro = None
         self.postal_code = None
         self.country_code = None
+        self.summary = None
         self.language = None
         self.industry = None
-        self.skills = None
-        self.summary = None
-
-        self.positions = None
-        self.educations = None
-
         self.first_graduation_date = None  # References first graduation date
-
         self.public_url = None
         self.recruiter_url = None
-
         self.isCompanyFollower = None
         self.careerInterests = None
+
+        self.positions = None
+        self.skills = None
+        self.educations = None
 
         self.parse_positions()
         self.parse_profile()
@@ -61,12 +58,12 @@ class LinkedInProfile(object):
         parsed_date = date(year=year, month=month, day=1)
         return parsed_date
 
-    def date_logic_helper(self, pos_dict, index):
+    def date_logic_helper(self, pos_dict):
 
-        startYearString = 'startDateYear_{}'.format(index)
-        startMonthString = 'startDateMonth_{}'.format(index)
-        endYearString = 'endDateYear_{}'.format(index)
-        endMonthString = 'endDateMonth_{}'.format(index)
+        startYearString = 'startDateYear'
+        startMonthString = 'startDateMonth'
+        endYearString = 'endDateYear'
+        endMonthString = 'endDateMonth'
 
         start_date_year = pos_dict.get(startYearString, False)
         start_date_month = pos_dict.get(startMonthString, False)
@@ -85,7 +82,7 @@ class LinkedInProfile(object):
         else:
             pos_dict.pop(startMonthString)
 
-        pos_dict['start_date_{}'.format(index)] = self.date_format_helper(month=start_date_month, year=start_date_year)
+        pos_dict['start_date'] = self.date_format_helper(month=start_date_month, year=start_date_year)
 
         # If this is current role, we are done. Else we need to do the same for end dates
 
@@ -103,7 +100,7 @@ class LinkedInProfile(object):
         else:
             pos_dict.pop(endMonthString)
 
-        pos_dict['end_date_{}'.format(index)] = self.date_format_helper(month=end_date_month, year=end_date_year)
+        pos_dict['end_date'] = self.date_format_helper(month=end_date_month, year=end_date_year)
 
         return pos_dict
 
