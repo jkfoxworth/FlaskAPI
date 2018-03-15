@@ -1,12 +1,14 @@
 import base64
+import mimetypes
 from datetime import date, timedelta
 from functools import wraps
 from operator import itemgetter
 
-from flask import render_template, redirect, url_for, request, abort, jsonify, send_file
+from flask import render_template, redirect, url_for, request, abort, jsonify, Response
 from flask_login import login_user, current_user, logout_user, login_required
 from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer)
+from werkzeug.datastructures import Headers
 
 from app_folder import app_run, db, login, csv_parser, profile_parser, request_pruner
 from app_folder.models import User, LinkedInRecord, UserCache, UserActivity
@@ -223,11 +225,43 @@ def serve_file(cache_id):
     for prof in cached_data:
         data.append(row2dict(prof))
 
-    xlsx_stream = csv_parser.db_to_excel(data)
-    if xlsx_stream:
-        return send_file(xlsx_stream, attachment_filename="{}.xlsx".format(cache_file_name), as_attachment=True)
-    else:
-        return "Error"
+    xlsx_stream = csv_parser.db_to_xlsx(data)
+
+    # Flask response
+    response = Response()
+    response.status_code = 200
+
+    # Add output to response
+    response.data = xlsx_stream.read()
+
+    # Set filename and mimetype
+    file_name = "{}.xlsx".format(cache_file_name)
+    mimetype_tuple = mimetypes.guess_type(file_name)
+
+    # HTTP headers for forcing file download
+    response_headers = Headers({
+        'Pragma': "public",  # required,
+        'Expires': '0',
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': 'attachment; filename=\"%s\";' % file_name,
+        'Content-Transfer-Encoding': 'binary',
+        'Content-Length': len(response.data)
+    })
+
+    if not mimetype_tuple[1] is None:
+        response.update({
+            'Content-Encoding': mimetype_tuple[1]
+        })
+
+    # Add headers
+    response.headers = response_headers
+
+    # jquery.fileDownload.js requirements
+    response.set_cookie('fileDownload', 'true', path='/')
+
+    # Return the response
+
+    return response
 
 
 @app_run.route('/manage/files/<category>', methods=['GET'])

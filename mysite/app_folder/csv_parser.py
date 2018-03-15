@@ -113,13 +113,13 @@ def to_int(x):
     except ValueError:
         return 0
 
-def db_to_excel(data):
+def db_to_xlsx(data):
     df = db_to_df(data)
     del data
-    xlsx_data = df_to_excel(df)
+    xlsx_data = df_to_xlsx(df)
     return xlsx_data
 
-def df_to_excel(df):
+def df_to_xlsx(df):
     """
     Handles conversion of dataframe to excel
     Uses xlsxwriter to apply zip code formatting
