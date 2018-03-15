@@ -87,9 +87,10 @@ class CompanyName(db.Model):
 class Education(db.Model):
     __tablename__ = 'educations'
     id = db.Column(db.Integer, primary_key=True)
+    current = db.Column(db.Boolean)
     education_school = db.Column(db.Text)
     education_start = db.Column(db.Date)
-    education_end = db.Column(db.Date)
+    education_end = db.Column(db.Date, nullable=True)
     education_degree = db.Column(db.Text)
     education_study_field = db.Column(db.Text)
     member_id = db.Column(db.Integer, db.ForeignKey('Profiles.id'))
