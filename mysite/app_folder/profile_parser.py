@@ -24,14 +24,7 @@ class LinkedInProfile(object):
         self.summary = None
 
         self.positions = None
-
-
-
-        self.education_school = None
-        self.education_start = None
-        self.education_end = None
-        self.education_degree = None
-        self.education_study_field = None
+        self.educations = None
 
         self.first_graduation_date = None  # References first graduation date
 
@@ -78,7 +71,7 @@ class LinkedInProfile(object):
         start_date_year = pos_dict.get(startYearString, False)
         start_date_month = pos_dict.get(startMonthString, False)
 
-        # Replace seperate year, month keys with one
+        # Replace separate year, month keys with one
         # Start dates
         if start_date_year is False:
             # Software for the ages... :)
@@ -129,10 +122,7 @@ class LinkedInProfile(object):
             # Languages may be 0 or more
             languages = profile_.get('languages', False)
             if languages:
-                all_lang = []
-                for l in languages:
-                    all_lang.append(l.get('languageName', ''))
-                self.language = ', '.join(all_lang)
+                self.language = ', '.join([l.get('languageName', '') for l in languages])
 
             self.industry = profile_.get('industry', None)
 
@@ -148,8 +138,8 @@ class LinkedInProfile(object):
             self.public_url = profile_.get('publicLink', None)
 
             recruiter_params = profile_.get('findAuthInputModel', False)
-            if recruiter_params:
-                self.recruiter_url = 'https://www.linkedin.com/recruiter/profile/' + recruiter_params.get('asUrlParam', None)
+            if recruiter_params and 'asUrlParam' in recruiter_params:
+                self.recruiter_url = 'https://www.linkedin.com/recruiter/profile/' + recruiter_params['asUrlParam']
 
             self.isCompanyFollower = profile_.get('isCompanyFollower', False)
             has_career_interests = profile_.get('careerInterests', False)
@@ -160,7 +150,7 @@ class LinkedInProfile(object):
 
     def parse_educations(self, educations):
 
-        accept_edu_keys = ['schoolName', 'fieldOfStudy', 'degree', 'startDateYear', 'endDateYear']
+        accept_edu_keys = ['schoolName', 'fieldOfStudy', 'degree', 'startDateYear', 'endDateYear', 'current']
 
         if educations is False:
             return None
@@ -179,9 +169,13 @@ class LinkedInProfile(object):
                 edu['current'] = False
                 return edu
 
+        def filter_keys(edu):
+            filtered_edu = {k: v for k, v}
+
         parsed_educations = list(map(past_or_present, educations))
 
-        previous_edu = [edu for edu in parsed_educations if edu['current']==False]
+        # Method to determine first graduation date
+        previous_edu = [edu for edu in parsed_educations if edu['current'] is False]
         if previous_edu:
             # Check if any have end year
             if any(list(filter(lambda x: 'endDateYear' in x, previous_edu))):
@@ -191,6 +185,8 @@ class LinkedInProfile(object):
                 grad_year = previous_edu.get('endDateYear', None)
                 if grad_year:
                     self.first_graduation_date = date(year=grad_year, month=5, day=1)
+
+        # Filter out junk keys
 
         return parsed_educations
 
