@@ -1,7 +1,9 @@
 import base64
+import io
 import pickle
 
 import pandas as pd
+
 from site_config import FConfig
 
 
@@ -110,3 +112,32 @@ def to_int(x):
         return x
     except ValueError:
         return 0
+
+def db_to_excel(data):
+    df = db_to_df(data)
+    del data
+    xlsx_data = df_to_excel(df)
+    return xlsx_data
+
+def df_to_excel(df):
+    """
+    Handles conversion of dataframe to excel
+    Uses xlsxwriter to apply zip code formatting
+
+    :param df: pandas dataframe
+    :return: binary, xlsx data
+    """
+    output = io.BytesIO()
+
+    writer = pd.ExcelWriter(output, engine='xlsxwriter')
+    df.to_excel(writer, sheet_name='Sheet1')
+    workbook = writer.book
+    worksheet = writer.sheets['Sheet1']
+    postal_format = workbook.add_format({'num_format': '00000'})
+    worksheet.set_column('F:F', None, postal_format)
+    writer.close()
+    del writer
+
+    # Seek to beginning of stream
+    output.seek(0)
+    return output

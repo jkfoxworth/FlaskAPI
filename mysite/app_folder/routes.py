@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from functools import wraps
 from operator import itemgetter
 
-from flask import render_template, redirect, url_for, request, abort, jsonify, Response
+from flask import render_template, redirect, url_for, request, abort, jsonify, send_file
 from flask_login import login_user, current_user, logout_user, login_required
 from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer)
@@ -17,10 +17,8 @@ def requires_key(func):
     def wrapped(*args, **kwargs):
         api_key = request.headers.get('Api-Key', False)
         if api_key is False:
-            print("No API-Key")
             abort(400)
         if User.verify_auth_token(api_key) is False:
-            print("Bad Key")
             abort(401)
         elif User.verify_auth_token(api_key) is None:
             abort(401)
@@ -225,12 +223,11 @@ def serve_file(cache_id):
     for prof in cached_data:
         data.append(row2dict(prof))
 
-    csv_text = csv_parser.db_to_df(data)
-    csv_text = "\uFEFF" + csv_text
-    return Response(csv_text, mimetype="text/csv",
-                    headers={"Content-type": "application/vnd.ms-excel",
-                             "Content-disposition": "attachment; filename={}.csv".format(cache_file_name),
-                             'charset': 'utf-8'})
+    xlsx_stream = csv_parser.db_to_excel(data)
+    if xlsx_stream:
+        return send_file(xlsx_stream, attachment_filename="{}.xlsx".format(cache_file_name), as_attachment=True)
+    else:
+        return "Error"
 
 
 @app_run.route('/manage/files/<category>', methods=['GET'])
@@ -497,7 +494,6 @@ def get_auth_token():
         elif isinstance(token, bytes):
             return jsonify({'token': token.decode('ascii')})
     else:
-        print("User not found from token")
         return abort(401)
 
 
@@ -513,7 +509,6 @@ def profile():
 
     if not request.json:
         abort(400)
-        print("Request not JSON")
 
     data = request.json
     parsed_data = profile_parser.LinkedInProfile(data)
@@ -528,7 +523,6 @@ def profile():
     matched_records = LinkedInRecord.query.filter_by(member_id=profile_record.member_id).first()
 
     if matched_records:
-        print("Handled update")
         profile_record = handle_update(profile_record)
 
     # Done with record, add it to session
@@ -587,7 +581,6 @@ def profile():
 @requires_key
 def prune():
     data = request.json['data']
-    print("User submits {}".format(data))
 
     profile_pruner = request_pruner.ProfilePruner(data)
     pruned_urls = []
@@ -622,13 +615,10 @@ def prune():
     def prune_record(lookup_result):
         created_date = lookup_result.created
         if created_date is None:
-            print("{} Record is Incomplete".format(lookup_result))
             return True  # incomplete record, get it
         if (date.today() - created_date).days >= profile_pruner.RECORD_IS_OLD:
-            print("{} Record is Old".format(lookup_result))
             return True  # old record, get it
         else:
-            print("{} Record is Duplicate".format(lookup_result))
             return False  # don't get it
 
     append_to_cache_bin = []
@@ -638,7 +628,6 @@ def prune():
         lookup_result = LinkedInRecord.query.filter_by(member_id=member_id).first()
         if lookup_result:
             if prune_record(lookup_result) is False:
-                print("We have {} in database".format(lookup_result))
                 # We don't want to fetch it
                 # But we want to create association
                 # Get the user's active cache
