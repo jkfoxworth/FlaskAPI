@@ -35,6 +35,13 @@ def generate_auth_token(user_id, session_number, expiration=86400):
     return s.dumps({'id': user_id, 'session': session_number})
 
 
+def generate_dl_token(user_id):
+    s = Serializer(app_run.config['SECRET_KEY'])
+    return s.dumps(({'id': user_id}))
+
+# TODO API Key for Passing as Parameter for Resume Download
+
+
 def update_user_token(user):
     current_session = user.current_session_user
     new_session = current_session + 1
