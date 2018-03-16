@@ -47,7 +47,7 @@ class LinkedInProfile(object):
 
             for index, pos in enumerate(positions):
                 filtered_pos = {k: v for (k, v) in positions[index].items() if k in accept_pos_keys}
-                dated_dict = self.date_logic_helper(filtered_pos, index)
+                dated_dict = self.date_logic_helper(filtered_pos)
                 position_holder.append(dated_dict)
 
             self.positions = position_holder

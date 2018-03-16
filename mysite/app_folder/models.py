@@ -21,7 +21,7 @@ Cache_Records = db.Table('Cache_Records',
                          )
 
 profile_skill_table = db.Table('profile_skill',
-                               db.Column('skill_id', db.Integer, db.ForeignKey('Skill.id'), primary_key=True),
+                               db.Column('skill_id', db.Integer, db.ForeignKey('skills.id'), primary_key=True),
                                db.Column('member_id', db.Integer, db.ForeignKey('Profiles.member_id'), primary_key=True)
                                )
 
@@ -47,14 +47,14 @@ class Job(db.Model):
 
     __tablename__ = 'jobs'
     id = db.Column(db.Integer, primary_key=True)
-    current = db.Column(db.Boolean, nullabe=True)
+    current = db.Column(db.Boolean)
     title = db.Column(db.Text)
     company = db.relationship("Company", uselist=False, back_populates="jobs")
     company_id = db.Column(db.Integer, db.ForeignKey('companies.id'))
-    start_date = db.Column(db.Date, nullable=True)
-    end_date = db.Column(db.Date, nullable=True)
+    start_date = db.Column(db.Date)
+    end_date = db.Column(db.Date)
     summary = db.Column(db.Text)
-    member_id = db.Column(db.Integer, db.ForeignKey('Profiles.id'))
+    member_id = db.Column(db.Integer, db.ForeignKey('Profiles.member_id'))
     member = db.relationship("LinkedInRecord", back_populates="positions")
 
 
@@ -62,8 +62,8 @@ class Company(db.Model):
     __tablename__ = 'companies'
     id = db.Column(db.Integer, primary_key=True)
     company_names = db.relationship("CompanyName", back_populates="company")
-    external_identifiers = db.Column(db.Integer, nullable=True)
-    partner_id = db.Column(db.Integer, default=None, nullable=True)
+    external_identifiers = db.Column(db.Integer, default=None)
+    partner_id = db.Column(db.Integer, default=None)
     jobs = db.relationship("Job", back_populates="company")
 
 
@@ -79,12 +79,12 @@ class Education(db.Model):
     __tablename__ = 'educations'
     id = db.Column(db.Integer, primary_key=True)
     current = db.Column(db.Boolean)
-    education_school = db.Column(db.Text)
-    education_start = db.Column(db.Date)
-    education_end = db.Column(db.Date, nullable=True)
-    education_degree = db.Column(db.Text)
-    education_study_field = db.Column(db.Text)
-    member_id = db.Column(db.Integer, db.ForeignKey('Profiles.id'))
+    school = db.Column(db.Text)
+    start_year = db.Column(db.Date)
+    end_year = db.Column(db.Date)
+    degree = db.Column(db.Text)
+    study_field = db.Column(db.Text)
+    member_id = db.Column(db.Integer, db.ForeignKey('Profiles.member_id'))
     member = db.relationship("LinkedInRecord", back_populates="educations", uselist=False)
 
 
@@ -93,7 +93,9 @@ class Skill(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.Text)
-    members = db.relationship("LinkedInRecord", secondary=profile_skill_table, backpopulates="skills")
+    members = db.relationship("LinkedInRecord", secondary=profile_skill_table, lazy=True,
+                              backref=db.backref('Profiles', lazy=True))
+
 
 
 class LinkedInRecord(db.Model):
@@ -119,7 +121,8 @@ class LinkedInRecord(db.Model):
     careerInterests = db.Column(db.Boolean)
 
     positions = db.relationship("Job", back_populates="member")
-    skills = db.relationship("Skill", secondary=profile_skill_table, back_populates="members")
+    skills = db.relationship("Skill", secondary=profile_skill_table, lazy=True,
+                             backref=db.backref('skills', lazy=True))
     educations = db.relationship("Education", back_populates="member")
 
 
@@ -146,10 +149,24 @@ class LinkedInRecord(db.Model):
         # Positions
         position_data = getattr(LinkedInProfile, 'positions', None)
         if position_data:
+            position_objs = []
             for position in position_data:
-                self.make_job(position)
+                position_objs.append(self.make_job(position))
+            self.positions.append([po for po in position_objs])
 
+        skill_data = getattr(LinkedInProfile, 'skills', None)
+        if skill_data:
+            skill_objs = []
+            for skill in skill_data:
+                skill_objs.append(self.lookup_skill(skill))
+            self.skills.append([sd for sd in skill_objs])
 
+        education_data = getattr(LinkedInProfile, 'educations', None)
+        if education_data:
+            edu_objs = []
+            for edu in education_data:
+                edu_objs.append(self.make_edu(edu))
+            self.educations.append([edu for edu in edu_objs])
 
     def make_job(self, pd):
 
@@ -167,9 +184,12 @@ class LinkedInRecord(db.Model):
         company = self.lookup_company(pd)
         if not company:
             company = self.make_company(pd)
-
-
-        self.positions.append(job)
+        job.company = company
+        job.title = pd.get('job_title', None)
+        job.start_date = pd.get('start_date', None)
+        job.end_date = pd.get('end_date', None)
+        job.summary = pd.get('summary', None)
+        return job
 
     def lookup_company(self, pd):
         if 'companyId' in pd:
@@ -185,15 +205,50 @@ class LinkedInRecord(db.Model):
             else:
                 return None
 
-
     def make_company(self, pd):
         company = Company()
+        db.session.add(company)
         if 'companyId' in pd:
             company.external_identifiers = int(pd['companyId'])
+        db.session.commit()
+        company_name = CompanyName(name=pd['companyName'])
+        db.session.add(company_name)
+        company.company_names.append(company_name)
+        db.session.commit()
+        return company
 
+    def lookup_skill(self, sd):
+        skill = Skill.query.filter_by(name=sd).first()
+        if skill:
+            return skill
+        else:
+            skill = self.make_skill(sd)
+            return skill
 
+    def make_skill(self, sd):
+        skill = Skill(name=sd)
+        db.session.add(skill)
+        return skill
 
+    def make_edu(self, ed):
 
+        edu_keys = [('schoolName', 'school'), ('fieldOfStudy', 'study_field'), ('degree', 'degree'),
+                    ('current', 'current')]
+
+        edu = Education()
+        for edu_key in edu_keys:
+            if edu_key[0] in ed:
+                setattr(edu, edu_key[1], ed[edu_key[0]])
+
+        start_year_ = ed.get('startDateYear', None)
+        if start_year_:
+            edu.start_year = date(year=start_year_, month=5, day=1)
+        end_year_ = ed.get('endDateYear', None)
+        if end_year_:
+            edu.end_year = date(year=end_year_, month=5, day=1)
+
+        db.session.add(edu)
+        return edu
 
 
 class UserCache(db.Model):
