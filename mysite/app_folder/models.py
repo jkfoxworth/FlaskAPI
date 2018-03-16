@@ -63,7 +63,7 @@ class Company(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     company_names = db.relationship("CompanyName", back_populates="company")
     external_identifiers = db.Column(db.Integer, nullable=True)
-    partner_id = db.Column(db.Integer, nullable=True)
+    partner_id = db.Column(db.Integer, default=None, nullable=True)
     jobs = db.relationship("Job", back_populates="company")
 
 
@@ -146,6 +146,8 @@ class LinkedInRecord(db.Model):
         # Positions
         position_data = getattr(LinkedInProfile, 'positions', None)
         if position_data:
+            for position in position_data:
+                self.make_job(position)
 
 
 
@@ -161,18 +163,33 @@ class LinkedInRecord(db.Model):
                 setattr(job, rk, pd[rk])
         db.session.add(job)
 
+        # Associate job with company
+        company = self.lookup_company(pd)
+        if not company:
+            company = self.make_company(pd)
+
 
         self.positions.append(job)
 
     def lookup_company(self, pd):
         if 'companyId' in pd:
-            company_result = Company.query.filter_by(external_identifiers=company_id).first()
+            company_result = Company.query.filter_by(external_identifiers=int(pd['companyId'])).first()
             if company_result:
                 return company_result
             else:
-                return False
+                return None
+        else:
+            company_name_result = CompanyName.query.filter_by(name=pd['companyName']).first()
+            if company_name_result:
+                return company_name_result.company
+            else:
+                return None
 
-    def make_company(self):
+
+    def make_company(self, pd):
+        company = Company()
+        if 'companyId' in pd:
+            company.external_identifiers = int(pd['companyId'])
 
 
 
