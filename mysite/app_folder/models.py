@@ -152,7 +152,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.Text)
     api_key = db.Column(db.Text)
     current_session_user = db.Column(db.Integer, default=0)
-    caches = db.relationship('usercache', backref='user', lazy='dynamic')
+    caches = db.relationship('UserCache', backref='user', lazy='dynamic')
     records = db.relationship('LinkedInRecord', secondary=User_Records, lazy=True,
                               backref=db.backref('users', lazy=True))
     activities = db.relationship('UserActivity', backref='user', lazy='dynamic')
