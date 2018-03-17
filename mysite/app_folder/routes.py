@@ -187,6 +187,8 @@ def fetch_user_caches_view():
 
     return render_template('cache_list.html', user_files=user_files, code=request.args.get('code'))
 
+@app_run.route('/upload', methods=['GET'])
+
 
 @app_run.route('/download/<cache_id>', methods=['GET'])
 @login_required
