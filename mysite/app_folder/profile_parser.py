@@ -18,57 +18,92 @@ class LinkedInProfile(object):
         self.metro = None
         self.postal_code = None
         self.country_code = None
-        self.summary = None
         self.language = None
         self.industry = None
+        self.skills = None
+        self.summary = None
+
+        self.companyName_0 = None
+        self.companyName_1 = None
+        self.companyName_2 = None
+
+        self.companyUrl_0 = None
+        self.companyUrl_1 = None
+        self.companyUrl_2 = None
+
+        self.title_0 = None
+        self.title_1 = None
+        self.title_2 = None
+
+        self.start_date_0 = None
+        self.end_date_0 = None
+        self.start_date_1 = None
+        self.end_date_1 = None
+        self.start_date_2 = None
+        self.end_date_2 = None
+
+        self.summary_0 = None
+        self.summary_1 = None
+        self.summary_2 = None
+
+        self.education_school = None
+        self.education_start = None
+        self.education_end = None
+        self.education_degree = None
+        self.education_study_field = None
+
         self.first_graduation_date = None  # References first graduation date
+
         self.public_url = None
         self.recruiter_url = None
+
         self.isCompanyFollower = None
         self.careerInterests = None
-
-        self.positions = None
-        self.skills = None
-        self.educations = None
 
         self.parse_positions()
         self.parse_profile()
 
     def parse_positions(self):
 
-        accept_pos_keys = ['current', 'companyName', 'summary', 'title', 'startDateYear', 'companyUrl',
-                           'location', 'startDateMonth', 'companyId', 'endDateMonth', 'endDateYear']
+        accept_pos_keys = ['companyName', 'summary', 'title', 'startDateYear', 'companyUrl', 'location',
+                           'startDateMonth',
+                           'companyId', 'endDateMonth', 'endDateYear']
 
         positions_ = self._raw.get('positions', False)
         if positions_:
+            # Accept only 3 positions
+            positions = positions_[0:3]
             # Remove the 'referenceCount' key
-            positions = [s['position'] for s in positions_]
-            position_holder = []
-
+            positions = [s['position'] for s in positions]
+            # Clever? way to match keys and values
             for index, pos in enumerate(positions):
                 filtered_pos = {k: v for (k, v) in positions[index].items() if k in accept_pos_keys}
-                dated_dict = self.date_logic_helper(filtered_pos)
-                position_holder.append(dated_dict)
+                pos_dict = {'{}_{}'.format(k, index): v for (k, v) in filtered_pos.items()}
 
-            self.positions = position_holder
+                dated_dict = self.date_logic_helper(pos_dict, index)
 
-    @staticmethod
-    def date_format_helper(month, year):
+                # We want to combine start|endDateMonth|Year to one
+                # Pass to helper function. Handles updating dictionary
+
+                for k, v in dated_dict.items():
+                    self.__dict__[k] = v
+
+    def date_format_helper(self, month, year):
 
         parsed_date = date(year=year, month=month, day=1)
         return parsed_date
 
-    def date_logic_helper(self, pos_dict):
+    def date_logic_helper(self, pos_dict, index):
 
-        startYearString = 'startDateYear'
-        startMonthString = 'startDateMonth'
-        endYearString = 'endDateYear'
-        endMonthString = 'endDateMonth'
+        startYearString = 'startDateYear_{}'.format(index)
+        startMonthString = 'startDateMonth_{}'.format(index)
+        endYearString = 'endDateYear_{}'.format(index)
+        endMonthString = 'endDateMonth_{}'.format(index)
 
         start_date_year = pos_dict.get(startYearString, False)
         start_date_month = pos_dict.get(startMonthString, False)
 
-        # Replace separate year, month keys with one
+        # Replace seperate year, month keys with one
         # Start dates
         if start_date_year is False:
             # Software for the ages... :)
@@ -82,7 +117,7 @@ class LinkedInProfile(object):
         else:
             pos_dict.pop(startMonthString)
 
-        pos_dict['start_date'] = self.date_format_helper(month=start_date_month, year=start_date_year)
+        pos_dict['start_date_{}'.format(index)] = self.date_format_helper(month=start_date_month, year=start_date_year)
 
         # If this is current role, we are done. Else we need to do the same for end dates
 
@@ -100,7 +135,7 @@ class LinkedInProfile(object):
         else:
             pos_dict.pop(endMonthString)
 
-        pos_dict['end_date'] = self.date_format_helper(month=end_date_month, year=end_date_year)
+        pos_dict['end_date_{}'.format(index)] = self.date_format_helper(month=end_date_month, year=end_date_year)
 
         return pos_dict
 
@@ -119,14 +154,17 @@ class LinkedInProfile(object):
             # Languages may be 0 or more
             languages = profile_.get('languages', False)
             if languages:
-                self.language = ', '.join([l.get('languageName', '') for l in languages])
+                all_lang = []
+                for l in languages:
+                    all_lang.append(l.get('languageName', ''))
+                self.language = ', '.join(all_lang)
 
             self.industry = profile_.get('industry', None)
 
             # Skills may be 0 or more
             skills = profile_.get('skills', False)
             if skills:
-                self.skills = skills
+                self.skills = ', '.join(skills)
 
             self.summary = profile_.get('summary', None)
 
@@ -135,8 +173,8 @@ class LinkedInProfile(object):
             self.public_url = profile_.get('publicLink', None)
 
             recruiter_params = profile_.get('findAuthInputModel', False)
-            if recruiter_params and 'asUrlParam' in recruiter_params:
-                self.recruiter_url = 'https://www.linkedin.com/recruiter/profile/' + recruiter_params['asUrlParam']
+            if recruiter_params:
+                self.recruiter_url = 'https://www.linkedin.com/recruiter/profile/' + recruiter_params.get('asUrlParam', None)
 
             self.isCompanyFollower = profile_.get('isCompanyFollower', False)
             has_career_interests = profile_.get('careerInterests', False)
@@ -146,47 +184,47 @@ class LinkedInProfile(object):
                 self.careerInterests = False
 
     def parse_educations(self, educations):
-
-        accept_edu_keys = ['schoolName', 'fieldOfStudy', 'degree', 'startDateYear', 'endDateYear', 'current']
-
         if educations is False:
             return None
 
-        def past_or_present(edu):
-            start = 'startDateYear'
-            end = 'endDateYear'
+        # Separate into current and past
+        current_edu = list(filter(lambda x: 'endDateYear' not in x, educations))
+        previous_edu = list(filter(lambda x: 'endDateYear' in x, educations))
 
-            if start not in edu and end not in edu:
-                edu['current'] = False
-                return edu
-            if start in edu and end not in edu:
-                edu['current'] = True
-                return edu
-            else:
-                edu['current'] = False
-                return edu
+        # Handle current edu
+        if current_edu:
+            if isinstance(current_edu, list):
+                current_edu = current_edu[0]
+            self.education_school = current_edu.get('schoolName', None)
+            education_start = current_edu.get('startDateYear', None)
+            if education_start:
+                self.education_start = date(year=education_start, month=1, day=1)
+            education_end = current_edu.get('endDateYear', None)
+            if education_end:
+                self.education_end = date(year=education_end, month=1, day=1)
+            self.education_degree = current_edu.get('degree', None)
+            self.education_study_field = current_edu.get('fieldOfStudy', None)
 
-        def filter_keys(edu):
-            filtered_edu = {k: v for k, v in edu.items() if k in accept_edu_keys}
-            return filtered_edu
 
-        parsed_educations = list(map(past_or_present, educations))
+        # Handle past education
+        # Find first graduation date. Sort list containing dict if needed
 
-        # Method to determine first graduation date
-        previous_edu = [edu for edu in parsed_educations if edu['current'] is False]
         if previous_edu:
-            # Check if any have end year
-            if any(list(filter(lambda x: 'endDateYear' in x, previous_edu))):
-                temp_edu = list(filter(lambda x: 'endDateYear' in x, previous_edu))
-                sorted_previous = sorted(temp_edu, key=lambda x: x['endDateYear'])  # Sort for earliest
+            if isinstance(previous_edu, list):
+                sorted_previous = sorted(previous_edu, key=lambda x: x['endDateYear'])  # Sort for earliest
                 previous_edu = sorted_previous[0]  # 0 result will be earliest
                 grad_year = previous_edu.get('endDateYear', None)
                 if grad_year:
                     self.first_graduation_date = date(year=grad_year, month=5, day=1)
 
-        # Filter out junk keys
-        filtered_educations = list(map(filter_keys, parsed_educations))
-        return filtered_educations
+        # May be 1 or more
+        # Choose most recent
+
+
+
+
+
+
 
     def parse_location(self, geo_url):
         if geo_url is False:
