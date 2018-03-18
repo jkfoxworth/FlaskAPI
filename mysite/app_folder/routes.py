@@ -198,9 +198,12 @@ def show_enrich():
 def do_enrich():
 
     provider = request.form.get('provider')
+
     try:
         if provider == 'Jobjet':
-            sheet_data = upload_tools.JobJetSpreadsheet(request)
+            print(provider)
+            sheet_data = upload_tools.JobJetSpreadsheet(request.files['file'])
+
         else:
             return redirect(url_for('show_enrich', code="unsupported"))
 
@@ -210,7 +213,8 @@ def do_enrich():
         db.session.add(enriched_data)
         db.session.commit()
         return redirect(url_for('show_enrich', code="success"))
-    except Exception:
+    except Exception as e:
+        print(e)
         return redirect(url_for('show_enrich', code="error"))
 
 
