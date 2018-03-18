@@ -1,16 +1,12 @@
 import os
+import re
+
 import pandas as pd
 from werkzeug.utils import secure_filename
+
 from site_config import FConfig
 
-
-"""
-
-GLOBAL PARAMETERS
-
-"""
 ALLOWED_EXTENSIONS = ['.csv', '.xls', '.xlsx']
-
 TRY_ENCODINGS = ['', 'latin1', 'cp1252', 'iso-8859-1']
 UPLOAD_FOLDER = FConfig.UPLOAD_FOLDER
 
@@ -19,12 +15,13 @@ def inject_allowed_ext():
     return dict(allowed_ext=ALLOWED_EXTENSIONS)
 
 
-class UploadManager(object):
+class UploadSpreadsheet(object):
     """
     class object to handle heavy lifting of receiving files via upload
+
+    :param request: flask request object
     """
 
-    # TODO Make more generic by removing some of the header and pandas specific functions
     # TODO Subclass, mixins for email providers
     allowed_extensions = ALLOWED_EXTENSIONS
     try_encodings = TRY_ENCODINGS
@@ -32,42 +29,76 @@ class UploadManager(object):
     def __init__(self, request):
         self.request = request
         self.request_file = request.files['file']
-        self.uploaded_filename = self.receive_upload_()
+        self.uploaded_filename = None
         self.uploaded_file = None
         self.status = None
-        if self.uploaded_filename:
-            self.uploaded_file = self.open_file_()
-        self.valid_header = None
-        self.valid_header = self.validate_header_()
-        self.data = None
-        if self.valid_header:
-            self.data = self.parse_sheet_()
+
+        self.open_file_(request)
 
     @staticmethod
-    def find_file_ext(filename):
-        ext = "." + filename.rsplit('.', 1)[-1]
-        return ext
+    def find_file_ext_(request):
+        filename = request.files.get('file', None)
+        if not filename:
+            return None
+        _, file_ext = os.path.splitext(filename)
+        return file_ext
 
     def allowed_file_(self, filename):
-        ext = self.find_file_ext(filename)
+        ext = self.find_file_ext_(filename)
         if ext in self.allowed_extensions:
             return True
         else:
             self.status = "Extension {} not permitted".format(ext)
             return False
 
-    def receive_upload_(self):
-        # TODO return False rather than rendering template for failures
+    def open_file_(self, request):
+
         """
-        Checks for common errors and omissions with uploading files
-        Checks for secure filename
-        Saves to disk and returns the filepath
-        :return: file_path
+        Function that handles opening the spreadsheet with pandas
+        Gets file extension and uses appropriate open method with pandas
+        Tries several encodings until opening is successful or ends with fail
+
+        :return: pd.DataFrame() or False if fail to open
         """
 
-        file = self.request_file
+        save_path = self.save_upload_(request)
+        if not save_path:
+            return None
+        file_ext = self.find_file_ext_(request)
+        if not file_ext:
+            return None
 
-        # Blank file included
+        if file_ext == '.csv':
+            open_method = pd.read_csv
+        elif file_ext == '.xls' or file_ext == '.xlsx':
+            open_method = pd.read_excel
+        else:
+            # No file extension found
+            self.status = 'No file extension was found'
+            return None
+
+        for encoding in self.try_encodings:
+            try:
+                if encoding == '':
+                    df = open_method(self.uploaded_filename)
+
+                else:
+                    df = open_method(self.uploaded_filename, encoding=encoding)
+                self.uploaded_file = df
+            except:
+                if encoding == self.try_encodings[-1]:
+                    # Tried all encodings, all failed
+                    self.status = "Unable to determine file encoding"
+                    return None
+                else:
+                    continue
+
+    def save_upload_(self, request):
+
+        file = request.files.get('file')
+        if not file:
+            self.status = "No file received"
+            return None
         if file.filename == '':
             self.status = "Your file name is blank"
             return None
@@ -85,78 +116,61 @@ class UploadManager(object):
 
         return file_path
 
-    def open_file_(self):
 
-        """
-        Function that handles opening the spreadsheet with pandas
-        Gets file extension and uses appropriate open method with pandas
-        Tries several encodings until opening is successful or ends with fail
+class JobJetSpreadsheet(UploadSpreadsheet):
 
-        :return: pd.DataFrame() or False if fail to open
-        """
-        file_ext = self.find_file_ext(self.uploaded_filename)
-        try_encodings = self.try_encodings
-        if file_ext == '.csv':
-            open_method = pd.read_csv
-        elif file_ext == '.xls' or file_ext == '.xlsx':
-            open_method = pd.read_excel
-        else:
-            # No file extension found
-            self.status = 'No file extension was found'
-            return None
+    HEADER_SEARCH = {'email_personal': re.compile(r"(Personal email \(\d\))", flags=re.IGNORECASE),
+                     'email_work': re.compile(r"(Work email \(\d\))", flags=re.IGNORECASE),
+                     'website_personal': re.compile("(Website url \(\d\))", flags=re.IGNORECASE),
+                     'website_linkedin': re.compile("(LinkedIn url \(\d\))", flags=re.IGNORECASE)}
 
-        for encoding in try_encodings:
-            try:
-                df = open_method(self.uploaded_filename, encoding=encoding)
-                return df
-            except:
-                if encoding == try_encodings[-1]:
-                    # Tried all encodings, all failed
-                    self.status = "Unable to determine file encoding"
-                    return None
-                else:
-                    continue
+    KEY_VALUE = 'website_linkedin'
 
-    def validate_header_(self):
+    def __init__(self, request):
+        super().__init__(request)
+        self.data_ = []
+        if self.uploaded_file:
+            self.scan_data_()
 
-        """
-        Function that tries different casing of user entered name header
-        :return: name_header or cased_name_header
-        """
-        user_header = self.request.form['header_name']
-        try:
-            df_headers = set(self.uploaded_file.columns.tolist())
-        except AttributeError:
-            return False
-        if user_header in df_headers:
-            return user_header
+    @property
+    def records(self):
+        return self.data_
 
-        # Try changing casing if user_header not found
-        casing_f = [lambda x: x.upper(), lambda x: x.lower(), lambda x: x.title()]
+    @records.getter
+    def records(self):
+        for d in self.data_:
+            yield d
 
-        for cf in casing_f:
-            cased_name_header = cf(user_header)
-            if cased_name_header in df_headers:
-                return cased_name_header
+    def scan_headers_(self):
 
-        self.status = "Unable to find header named: {} , in file".format(user_header)
-        return False
+        relevant_headers = {k: [] for k in self.HEADER_SEARCH.keys()}
 
-    def parse_sheet_(self):
-        """
-        :return: column data from sheet
-        """
-        if self.valid_header:
-            try:
-                names_col = self.uploaded_file[self.valid_header].values.tolist()
-                self.status = True
-                return names_col
-            except KeyError:
-                self.status = 'Unable to find header named: {}, in file'.format(self.valid_header)
-                return False
+        cols = self.uploaded_file.columns.tolist()
+        for data_type, pattern in self.HEADER_SEARCH.items():
+            relevant_headers[data_type] = [match.group() for match in [pattern.search(c) for c in cols] if match]
 
-    def file_data(self):
-        if self.data:
-            return self.data
-        else:
-            return False
+        return relevant_headers
+
+    def scan_data_(self):
+
+        relevant_headers = self.scan_headers_()
+        file_data = self.uploaded_file.fillna('').to_dict('records')
+
+        data_records = []
+
+        for row_data in file_data:
+            td = {}
+            for data_type, header_names in relevant_headers.items():
+                td[data_type] = [sv for sv in [v for k, v in row_data.items() if k in header_names] if sv != '']
+            data_records.append(td)
+
+
+
+
+
+
+
+
+
+
+
