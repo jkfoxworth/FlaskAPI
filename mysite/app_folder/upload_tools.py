@@ -5,6 +5,7 @@ import re
 import pandas as pd
 from werkzeug.utils import secure_filename
 
+from app_folder import db
 from app_folder.models import LinkedInRecord, Contact
 from site_config import FConfig
 
@@ -28,32 +29,31 @@ class UploadSpreadsheet(object):
     allowed_extensions = ALLOWED_EXTENSIONS
     try_encodings = TRY_ENCODINGS
 
-    def __init__(self, request):
-        self.request = request
-        self.request_file = request.files['file']
+    def __init__(self, request_file):
+        self.request_file = request_file
         self.uploaded_filename = None
         self.uploaded_file = None
         self.status = None
 
-        self.open_file_(request)
+        self.open_file_()
 
-    @staticmethod
-    def find_file_ext_(request):
-        filename = request.files.get('file', None)
+
+    def find_file_ext_(self):
+        filename = self.request_file.filename
         if not filename:
             return None
         _, file_ext = os.path.splitext(filename)
         return file_ext
 
-    def allowed_file_(self, filename):
-        ext = self.find_file_ext_(filename)
+    def allowed_file_(self):
+        ext = self.find_file_ext_()
         if ext in self.allowed_extensions:
             return True
         else:
             self.status = "Extension {} not permitted".format(ext)
             return False
 
-    def open_file_(self, request):
+    def open_file_(self):
 
         """
         Function that handles opening the spreadsheet with pandas
@@ -63,10 +63,10 @@ class UploadSpreadsheet(object):
         :return: pd.DataFrame() or False if fail to open
         """
 
-        save_path = self.save_upload_(request)
+        save_path = self.save_upload_()
         if not save_path:
             return None
-        file_ext = self.find_file_ext_(request)
+        file_ext = self.find_file_ext_()
         if not file_ext:
             return None
 
@@ -95,9 +95,9 @@ class UploadSpreadsheet(object):
                 else:
                     continue
 
-    def save_upload_(self, request):
+    def save_upload_(self):
 
-        file = request.files.get('file')
+        file = self.request_file
         if not file:
             self.status = "No file received"
             return None
@@ -107,7 +107,7 @@ class UploadSpreadsheet(object):
 
         filename = secure_filename(file.filename)
 
-        if self.allowed_file_(filename) is False:
+        if self.allowed_file_() is False:
             return None
 
         # Save file to open later for analysis
@@ -149,6 +149,7 @@ class ContactSpreadsheet(abc.ABC, UploadSpreadsheet):
             for data_type, header_names in relevant_headers.items():
                 td[data_type] = [sv for sv in [v for k, v in row_data.items() if k in header_names] if sv != '']
             data_records.append(td)
+        return data_records
 
 
 class JobJetSpreadsheet(ContactSpreadsheet):
@@ -175,6 +176,14 @@ class JobJetSpreadsheet(ContactSpreadsheet):
         for d in self.data_:
             yield d
 
+    def scan_data_(self):
+        data_records = super().scan_data_()
+        return data_records
+
+
+    def scan_headers_(self):
+        relevant_headers = super().scan_headers_()
+        return relevant_headers
 
 class DataMapper(object):
 

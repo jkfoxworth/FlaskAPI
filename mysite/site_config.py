@@ -8,7 +8,14 @@ class Config(object):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     DEBUG = True
     DEBUG_TB_PROFILER_ENABLED = True
-    DEBUG_TB_INTERCEPT_REDIRECTS = False
+    DEBUG_TB_INTERCEPT_REDIRECTS = True
+    EXPLAIN_TEMPLATE_LOADING = False
+    PRESERVE_CONTEXT_ON_EXCEPTION = True
+    PROPAGATE_EXCEPTIONS = True
+    TESTING = True
+    TRAP_BAD_REQUEST_ERRORS = True
+    TRAP_HTTP_EXCEPTIONS = True
+    UPLOAD_FOLDER = os.path.join(basedir, 'app_folder/uploads')
 
 class FConfig(object):
     COUNTRY_DICT = os.path.join(basedir, 'app_folder/country_codes.pkl')
