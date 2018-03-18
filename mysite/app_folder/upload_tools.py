@@ -1,3 +1,4 @@
+import abc
 import os
 import re
 
@@ -117,14 +118,46 @@ class UploadSpreadsheet(object):
         return file_path
 
 
-class JobJetSpreadsheet(UploadSpreadsheet):
+class ContactSpreadsheet(UploadSpreadsheet, abc.ABC):
 
-    HEADER_SEARCH = {'email_personal': re.compile(r"(Personal email \(\d\))", flags=re.IGNORECASE),
-                     'email_work': re.compile(r"(Work email \(\d\))", flags=re.IGNORECASE),
-                     'website_personal': re.compile("(Website url \(\d\))", flags=re.IGNORECASE),
-                     'website_linkedin': re.compile("(LinkedIn url \(\d\))", flags=re.IGNORECASE)}
+    @property
+    @abc.abstractmethod
+    def HEADER_SEARCH(self):
+        return None
 
-    KEY_VALUE = 'website_linkedin'
+    @abc.abstractmethod
+    def scan_headers_(self):
+        relevant_headers = {k: [] for k in self.HEADER_SEARCH.keys()}
+
+        cols = self.uploaded_file.columns.tolist()
+        for data_type, pattern in self.HEADER_SEARCH.items():
+            relevant_headers[data_type] = [match.group() for match in [pattern.search(c) for c in cols] if match]
+
+        return relevant_headers
+
+    @abc.abstractmethod
+    def scan_data_(self):
+
+        relevant_headers = self.scan_headers_()
+        file_data = self.uploaded_file.fillna('').to_dict('records')
+
+        data_records = []
+
+        for row_data in file_data:
+            td = {}
+            for data_type, header_names in relevant_headers.items():
+                td[data_type] = [sv for sv in [v for k, v in row_data.items() if k in header_names] if sv != '']
+            data_records.append(td)
+
+
+class JobJetSpreadsheet(UploadSpreadsheet, ContactSpreadsheet):
+
+    @property
+    def HEADER_SEARCH(self):
+        return {'email_personal': re.compile(r"(Personal email \(\d\))", flags=re.IGNORECASE),
+                'email_work': re.compile(r"(Work email \(\d\))", flags=re.IGNORECASE),
+                'website_personal': re.compile("(Website url \(\d\))", flags=re.IGNORECASE),
+                'website_linkedin': re.compile("(LinkedIn url \(\d\))", flags=re.IGNORECASE)}
 
     def __init__(self, request):
         super().__init__(request)
@@ -140,29 +173,6 @@ class JobJetSpreadsheet(UploadSpreadsheet):
     def records(self):
         for d in self.data_:
             yield d
-
-    def scan_headers_(self):
-
-        relevant_headers = {k: [] for k in self.HEADER_SEARCH.keys()}
-
-        cols = self.uploaded_file.columns.tolist()
-        for data_type, pattern in self.HEADER_SEARCH.items():
-            relevant_headers[data_type] = [match.group() for match in [pattern.search(c) for c in cols] if match]
-
-        return relevant_headers
-
-    def scan_data_(self):
-
-        relevant_headers = self.scan_headers_()
-        file_data = self.uploaded_file.fillna('').to_dict('records')
-
-        data_records = []
-
-        for row_data in file_data:
-            td = {}
-            for data_type, header_names in relevant_headers.items():
-                td[data_type] = [sv for sv in [v for k, v in row_data.items() if k in header_names] if sv != '']
-            data_records.append(td)
 
 
 
