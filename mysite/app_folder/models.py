@@ -107,6 +107,7 @@ class Contact(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     is_email = db.Column(db.Boolean)
     is_website = db.Column(db.Boolean)
+    is_personal = db.Column(db.Boolean)
     address = db.Column(db.Text)
     profile_id = db.Column(db.Integer, db.ForeignKey('profiles.member_id'))
 
