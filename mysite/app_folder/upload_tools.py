@@ -5,7 +5,7 @@ import re
 import pandas as pd
 from werkzeug.utils import secure_filename
 
-from app_folder.models import LinkedInRecord
+from app_folder.models import LinkedInRecord, Contact
 from site_config import FConfig
 
 ALLOWED_EXTENSIONS = ['.csv', '.xls', '.xlsx']
@@ -244,12 +244,62 @@ class DataMapper(object):
 
     def fetch_record_(self, row_data):
 
-        primary_keys = self.locate_primary_(row_data)
-        if not primary_keys:
+        return self.locate_primary_(row_data)
+
+    def enrich_record_(self, row_data):
+
+        record = self.fetch_record_(row_data)
+        if not record:
             return None
 
-        # TODO Set attributes on recor
-        # TODO Add columns for additional attributes
+        contact_records = []
+
+        for data_type, data_values in row_data.items():
+
+            if not data_values:
+                continue
+            if 'linkedin' in data_type:
+                continue
+
+            # Is it email or website?
+            contact_type, contact_range = data_type.split("_")
+            if 'email' in contact_type:
+                is_email_ = True
+                is_website_ = False
+            else:
+                is_email_ = False
+                is_website_ = True
+
+            if 'person' in contact_range:
+                is_personal_ = True
+            else:
+                is_personal_ = False
+
+            for dv in data_values:
+                # Make new contact
+                crecord = Contact(address=dv, is_email=is_email_, is_personal=is_personal_, is_website=is_website_)
+                db.session.add(crecord)
+                contact_records.append(crecord)
+
+        record.contacts.extend(contact_records)
+        db.session.add(record)
+        return record
+
+    def enrich(self):
+
+        data_records = self.mapped_object.records
+        enriched_records = [self.enrich_record_(d) for d in data_records]
+        db.session.commit()
+
+
+
+
+
+
+
+
+
+
 
 
 
