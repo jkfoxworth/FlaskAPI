@@ -119,7 +119,7 @@ class UploadSpreadsheet(object):
         return file_path
 
 
-class ContactSpreadsheet(UploadSpreadsheet, abc.ABC):
+class ContactSpreadsheet(abc.ABC, UploadSpreadsheet):
 
     @property
     @abc.abstractmethod
@@ -151,7 +151,7 @@ class ContactSpreadsheet(UploadSpreadsheet, abc.ABC):
             data_records.append(td)
 
 
-class JobJetSpreadsheet(UploadSpreadsheet, ContactSpreadsheet):
+class JobJetSpreadsheet(ContactSpreadsheet):
 
     @property
     def HEADER_SEARCH(self):
