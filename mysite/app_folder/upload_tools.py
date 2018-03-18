@@ -5,6 +5,7 @@ import re
 import pandas as pd
 from werkzeug.utils import secure_filename
 
+from app_folder.models import LinkedInRecord
 from site_config import FConfig
 
 ALLOWED_EXTENSIONS = ['.csv', '.xls', '.xlsx']
@@ -173,6 +174,86 @@ class JobJetSpreadsheet(UploadSpreadsheet, ContactSpreadsheet):
     def records(self):
         for d in self.data_:
             yield d
+
+
+class DataMapper(object):
+
+    def __init__(self, mapped_object):
+        self.mapped_object = mapped_object
+
+    @staticmethod
+    def public_search_(key):
+        user_name = re.search(r"(?<=\/in\/)([A-z]+)", key)
+        if user_name:
+            return user_name.group()
+
+        alternative_name = re.search(r"(?<=\/pub\/)([A-z]+)", key)
+        if alternative_name:
+            return alternative_name.group()
+        else:
+            return None
+
+    KEY_SEARCH = {'recruiter': re.compile(r"(?<=recruiter\/profile\/)([0-9]+)", flags=re.IGNORECASE),
+                  'public': public_search_}
+
+
+    def locate_primary_(self, row_data):
+        # Fetch the linkedin_website key from the row_data
+        primary_keys = row_data.get('website_linkedin', [])
+        if not primary_keys:
+            return None
+        else:
+            primary_keys = self.extract_key_(primary_keys)
+
+        # Check if any keys found
+        if not any(primary_keys.values()):
+            return None
+
+        # Prefer member_id
+        member_id_, public_url_ = primary_keys['member_id'][0], primary_keys['public_url'][0]
+
+        if member_id_:
+            record = LinkedInRecord.query.filter_by(member_id_=member_id_).first()
+        else:
+            record = LinkedInRecord.query.filter(
+                LinkedInRecord.public_url_.ilike("%{}".format(public_url_))).first()
+        if record:
+            return record
+
+        if not record and public_url_:
+            record = LinkedInRecord.query.filter(
+                LinkedInRecord.public_url_.ilike("%{}".format(public_url_))).first()
+            return record
+
+
+    def extract_key_(self, primary_keys):
+        # Either lookup by recruiter member id or url split after /in/
+        keys = dict(member_id=[], public_url=[])
+        for pk in primary_keys:
+            if 'recruiter' in pk:
+                member_match = self.KEY_SEARCH['recruiter'].search(pk)
+                if member_match:
+                    keys['member_id'].append(member_match.group())
+            else:
+                url_match = self.KEY_SEARCH['public'](pk)
+                if url_match:
+                    keys['public_url'].append(url_match)
+
+        return keys
+
+
+    def fetch_record_(self, row_data):
+
+        primary_keys = self.locate_primary_(row_data)
+        if not primary_keys:
+            return None
+
+        # TODO Set attributes on recor
+        # TODO Add columns for additional attributes
+
+
+
+
 
 
 
