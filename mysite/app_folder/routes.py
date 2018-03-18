@@ -199,6 +199,7 @@ def do_enrich():
 
     provider = request.form.get('provider')
 
+
     try:
         if provider == 'Jobjet':
             print(provider)
