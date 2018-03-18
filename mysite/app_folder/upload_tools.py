@@ -289,7 +289,7 @@ class DataMapper(object):
 
         data_records = self.mapped_object.records
         enriched_records = [self.enrich_record_(d) for d in data_records]
-        db.session.commit()
+        return enriched_records
 
 
 
