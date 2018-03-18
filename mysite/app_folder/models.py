@@ -76,6 +76,8 @@ class LinkedInRecord(db.Model):
     isCompanyFollower = db.Column(db.Boolean)
     careerInterests = db.Column(db.Boolean)
 
+    contacts = db.relationship("Contact")
+
     def __init__(self, LinkedInProfile):
         """
         :param LinkedInProfile:
@@ -96,6 +98,17 @@ class LinkedInRecord(db.Model):
         # Handles if Table object is intended to be internal
         k_ = "_" + k
         setattr(self, k_, v)
+
+
+class Contact(db.Model):
+
+    __tablename__ = "contacts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    is_email = db.Column(db.Boolean)
+    is_website = db.Column(db.Boolean)
+    address = db.Column(db.Text)
+    profile_id = db.Column(db.Integer, db.ForeignKey('profiles.member_id'))
 
 
 class UserCache(db.Model):
