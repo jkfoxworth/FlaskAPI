@@ -11,6 +11,11 @@
         Something Went Wrong
     </div>
 
+{% elif code == 'unsupported' %}
+<div class="alert alert-warning" role="alert">
+        Provider not supported
+    </div>
+
 {% endif %}
 
 <div class="container-fluid text-center">
@@ -20,6 +25,7 @@
 <div class="container-fluid text-center">
 <form action="/enrich/do" method="POST" class="form-inline">
     <div class="form-group">
+        <input type="file" name="file" class="form-control" required="" size="50">
         <label for="provider_type">Select Provider</label>
             <select class="form-control" id="provider_type" name="provider">
                 <option>Jobjet</option>

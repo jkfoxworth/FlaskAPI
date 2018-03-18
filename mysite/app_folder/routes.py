@@ -10,7 +10,7 @@ from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer)
 from werkzeug.datastructures import Headers
 
-from app_folder import app_run, db, login, csv_parser, profile_parser, request_pruner
+from app_folder import app_run, db, login, csv_parser, profile_parser, request_pruner, upload_tools
 from app_folder.models import User, LinkedInRecord, UserCache, UserActivity, Cache_Records
 
 
@@ -187,7 +187,32 @@ def fetch_user_caches_view():
 
     return render_template('cache_list.html', user_files=user_files, code=request.args.get('code'))
 
-@app_run.route('/upload', methods=['GET'])
+@app_run.route('/enrich', methods=['GET'])
+@login_required
+def show_enrich():
+    return render_template('upload_contacts.html', code=request.args.get('code'))
+
+
+@app_run.route('/enrich/do', methods=['POST'])
+@login_required
+def do_enrich():
+
+    provider = request.form.get('provider')
+    try:
+        if provider == 'Jobjet':
+            sheet_data = upload_tools.JobJetSpreadsheet(request)
+        else:
+            return redirect(url_for('show_enrich', code="unsupported"))
+
+
+        data_mapper = upload_tools.DataMapper(sheet_data)
+        enriched_data = data_mapper.enrich()
+        db.session.add(enriched_data)
+        db.session.commit()
+        return redirect(url_for('show_enrich', code="success"))
+    except Exception:
+        return redirect(url_for('show_enrich', code="error"))
+
 
 
 @app_run.route('/download/<cache_id>', methods=['GET'])
