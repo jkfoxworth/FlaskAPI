@@ -10,7 +10,7 @@ from app_folder.models import LinkedInRecord, Contact
 from site_config import FConfig
 
 ALLOWED_EXTENSIONS = ['.csv', '.xls', '.xlsx']
-TRY_ENCODINGS = ['', 'latin1', 'cp1252', 'iso-8859-1']
+TRY_ENCODINGS = ['default', 'unicode' 'latin1', 'cp1252', 'iso-8859-1', 'ascii']
 UPLOAD_FOLDER = FConfig.UPLOAD_FOLDER
 
 
@@ -31,7 +31,7 @@ class UploadSpreadsheet(object):
 
     def __init__(self, request_file):
         self.request_file = request_file
-        self.uploaded_filename = None
+        self.uploaded_file_path = None
         self.uploaded_file = None
         self.status = None
 
@@ -52,48 +52,6 @@ class UploadSpreadsheet(object):
         else:
             self.status = "Extension {} not permitted".format(ext)
             return False
-
-    def open_file_(self):
-
-        """
-        Function that handles opening the spreadsheet with pandas
-        Gets file extension and uses appropriate open method with pandas
-        Tries several encodings until opening is successful or ends with fail
-
-        :return: pd.DataFrame() or False if fail to open
-        """
-
-        save_path = self.save_upload_()
-        if not save_path:
-            return None
-        file_ext = self.find_file_ext_()
-        if not file_ext:
-            return None
-
-        if file_ext == '.csv':
-            open_method = pd.read_csv
-        elif file_ext == '.xls' or file_ext == '.xlsx':
-            open_method = pd.read_excel
-        else:
-            # No file extension found
-            self.status = 'No file extension was found'
-            return None
-
-        for encoding in self.try_encodings:
-            try:
-                if encoding == '':
-                    df = open_method(self.uploaded_filename)
-
-                else:
-                    df = open_method(self.uploaded_filename, encoding=encoding)
-                self.uploaded_file = df
-            except:
-                if encoding == self.try_encodings[-1]:
-                    # Tried all encodings, all failed
-                    self.status = "Unable to determine file encoding"
-                    return None
-                else:
-                    continue
 
     def save_upload_(self):
 
@@ -117,6 +75,51 @@ class UploadSpreadsheet(object):
         file_path = os.path.join(UPLOAD_FOLDER, filename)
 
         return file_path
+
+    def open_file_(self):
+
+        """
+        Function that handles opening the spreadsheet with pandas
+        Gets file extension and uses appropriate open method with pandas
+        Tries several encodings until opening is successful or ends with fail
+
+        :return: pd.DataFrame() or False if fail to open
+        """
+
+        self.uploaded_file_path = self.save_upload_()
+        if not self.uploaded_file_path:
+            print(self.status)
+            return None
+        file_ext = self.find_file_ext_()
+        if not file_ext:
+            return None
+
+        if file_ext == '.csv':
+            open_method = pd.read_csv
+        elif file_ext == '.xls' or file_ext == '.xlsx':
+            open_method = pd.read_excel
+        else:
+            # No file extension found
+            self.status = 'No file extension was found'
+            return None
+
+        for encoding in self.try_encodings:
+            try:
+                if encoding == 'default':
+                    df = open_method(self.uploaded_file_path)
+
+                else:
+                    df = open_method(self.uploaded_file_path, encoding=encoding)
+                self.uploaded_file = df
+                break
+            except Exception as e:
+                print(e)
+                if encoding == self.try_encodings[-1]:
+                    # Tried all encodings, all failed
+                    self.status = "Unable to determine file encoding"
+                    return None
+                else:
+                    continue
 
 
 class ContactSpreadsheet(abc.ABC, UploadSpreadsheet):
@@ -164,7 +167,7 @@ class JobJetSpreadsheet(ContactSpreadsheet):
     def __init__(self, request):
         super().__init__(request)
         self.data_ = []
-        if self.uploaded_file:
+        if self.uploaded_file is not None:
             self.scan_data_()
 
     @property
@@ -173,12 +176,11 @@ class JobJetSpreadsheet(ContactSpreadsheet):
 
     @records.getter
     def records(self):
-        for d in self.data_:
-            yield d
+        return self.data_
 
     def scan_data_(self):
         data_records = super().scan_data_()
-        return data_records
+        self.data_ = data_records
 
 
     def scan_headers_(self):
@@ -297,7 +299,9 @@ class DataMapper(object):
     def enrich(self):
 
         data_records = self.mapped_object.records
-        enriched_records = [self.enrich_record_(d) for d in data_records]
+        enriched_records = []
+        for d in data_records:
+            enriched_records.append(self.enrich_record_(d))
         return enriched_records
 
 
