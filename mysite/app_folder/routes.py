@@ -240,6 +240,32 @@ def serve_file(cache_id):
     cached_data = fetched_cache.profiles
     data = []
 
+    def append_contacts(d, contacts):
+
+        data_type_counts = {'email_home': 0, 'email_work': 0, 'website_personal': 0}
+        for c in contacts:
+            email, website, personal = list(map(lambda x: getattr(c, x), ['is_email', 'is_website', 'is_personal']))
+            if email and personal:
+                data_type = 'email_home'
+            elif email and not personal:
+                data_type = 'email_work'
+            elif not email and personal:
+                data_type = 'website_personal'
+            else:
+                continue
+            if not c.address:
+                continue
+
+            # Append index of data type to row
+            current_count = data_type_counts[data_type]
+            data_type_ind = data_type + "_{}".format(current_count)
+            td = {data_type_ind: c.address}
+            d.update(td)
+
+            # Increase data type count by 1
+            new_count = current_count + 1
+            data_type_counts.update({data_type: new_count})
+
     def row2dict(row):
         d = {}
         for column in row.__table__.columns:
@@ -249,6 +275,11 @@ def serve_file(cache_id):
             if row_val is None or row_val == 'None':
                 row_val = ''
             d[column.name] = row_val
+
+        # Also add contact data
+        contacts = row.contacts
+        if contacts:
+            append_contacts(d, contacts)
         return d
 
     for prof in cached_data:

@@ -1,6 +1,7 @@
 import base64
 import io
 import pickle
+import re
 
 import pandas as pd
 
@@ -16,9 +17,10 @@ def db_to_df(data):
     df2 = pd.DataFrame(columns=['Full Name', 'First Name', 'Last Name', 'Metropolitan Area',
                                 'Home State', 'Home Postal Code', 'Home Country', 'Theater', 'Skills and Technologies',
                                 'Company', 'Position Title', 'Prior Employer', 'Prior Position Title',
-                                'Work History - Company', 'Work History - Position title', 'Home Email', 'Work Email',
+                                'Work History - Company', 'Work History - Position title', 'Home Email_0',
+                                'Home Email_1', 'Home Email_2', 'Home Email_3', 'Work Email_0',
                                 'Mobile Phone', 'Home Phone', 'Work Phone', 'Open To Opportunities', 'Company Follower',
-                                'Graduation Date', 'Summary', 'Website', 'Source',
+                                'Graduation Date', 'Summary', 'Website_LinkedIn', 'Website_Personal_0', 'Source',
                                 'Base64-encoded attachment Name', 'Base64-encoded attachment content'])
     df2['Full Name'] = df['first_name'] + " " + df['last_name']
     df2['First Name'] = df['first_name']
@@ -45,6 +47,27 @@ def db_to_df(data):
     df2['Hermes Resume'] = df['member_id'].apply(lambda x: make_hermes_link(x))
     df2['Base64-encoded attachment Name'] = df['member_id'] + ".rtf"
     df2['Base64-encoded attachment content'] = df.apply(make_resume_b64, axis=1)
+
+    # Add Contact Data
+    # If column not present in df, return '' filled column
+    def col_else_blank(target_df, col_name):
+        if col_name in target_df.columns:
+            return target_df[col_name]
+        else:
+            return ''
+
+    df2['Home Email_0'] = col_else_blank(df, 'email_home_0')
+    df2['Home Email_1'] = col_else_blank(df, 'email_home_1')
+    df2['Home Email_2'] = col_else_blank(df, 'email_home_2')
+    df2['Work Email_0'] = col_else_blank(df, 'email_work_0')
+    df2['Website_Personal_0'] = col_else_blank(df, 'website_personal_0')
+
+    # Remove _(single_int) from Header Names
+    def strip_col_index(x):
+        ind_search = re.compile(r"(_\d)")
+        return ind_search.sub("", x)
+
+    df2.columns = map(strip_col_index, df2.columns)
 
     return df2
 
@@ -141,3 +164,4 @@ def df_to_xlsx(df):
     # Seek to beginning of stream
     output.seek(0)
     return output
+
