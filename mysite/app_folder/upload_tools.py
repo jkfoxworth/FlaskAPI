@@ -166,11 +166,11 @@ class ContactSpreadsheet(abc.ABC, UploadSpreadsheet):
         if not self.KEEP_PATTERNS:
             return True
         for kept in self.KEEP_PATTERNS:
-            if kept['in'] in data_type and kept['pattern'] is False:
-                return True
             for kept_type in kept['in']:
                 if kept_type not in data_type:
                     continue
+                if kept['pattern'] is False:
+                    return True
                 if kept['pattern'].search(sv) is not None:
                     return True
         return False
@@ -188,7 +188,8 @@ class JobJetSpreadsheet(ContactSpreadsheet):
 
     @property
     def KEEP_PATTERNS(self):
-        return [{'pattern': False, 'in': ['email']},
+        return [{'pattern': False, 'in': ['member_id']},
+                {'pattern': False, 'in': ['email']},
                 {'pattern': re.compile(r"(linkedin)|(github)|(twitter)|(google)|(facebook)", flags=re.IGNORECASE),
                  'in': ['website']}]
 
