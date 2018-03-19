@@ -162,7 +162,8 @@ class JobJetSpreadsheet(ContactSpreadsheet):
         return {'email_personal': re.compile(r"(Personal email \(\d\))", flags=re.IGNORECASE),
                 'email_work': re.compile(r"(Work email \(\d\))", flags=re.IGNORECASE),
                 'website_personal': re.compile("(Website url \(\d\))", flags=re.IGNORECASE),
-                'website_linkedin': re.compile("(LinkedIn url \(\d\))", flags=re.IGNORECASE)}
+                'website_linkedin': re.compile("(LinkedIn url \(\d\))", flags=re.IGNORECASE),
+                'member_id': re.compile(r"(Tag1)", flags=re.IGNORECASE)}
 
     def __init__(self, request):
         super().__init__(request)
@@ -182,115 +183,36 @@ class JobJetSpreadsheet(ContactSpreadsheet):
         data_records = super().scan_data_()
         self.data_ = data_records
 
-
     def scan_headers_(self):
         relevant_headers = super().scan_headers_()
         return relevant_headers
+
 
 class DataMapper(object):
 
     def __init__(self, mapped_object):
         self.mapped_object = mapped_object
 
-    def public_search_(self, key):
-        user_name = re.search(r"(?<=\/in\/)(.+)", key)
-        if user_name:
-            return user_name.group()
-
-        alternative_name = re.search(r"(?<=\/pub\/)(.+)", key)
-        if alternative_name:
-            return alternative_name.group()
-        else:
-            return None
-
-    KEY_SEARCH = {'recruiter': re.compile(r"(?<=recruiter\/profile\/)([0-9]+)", flags=re.IGNORECASE),
-                  'public': public_search_}
-
-    def locate_primary_(self, row_data):
-        # Fetch the linkedin_website key from the row_data
-        primary_keys = row_data.get('website_linkedin', [])
-        if not primary_keys:
-            return None
-        else:
-            primary_keys = self.extract_key_(primary_keys)
-
-        # Check if any keys found
-        if not any(primary_keys.values()):
-            return None
-
-        # Prefer member_id
-
-        def first_or_none(x, k):
-            y = x.get(k, [])
-            if y:
-                return y[0]
-            else:
-                return None
-
-        member_id_, public_url_ = first_or_none(primary_keys, 'member_id'), first_or_none(primary_keys, 'public_url')
-
-        if member_id_:
-            record = LinkedInRecord.query.filter_by(member_id=member_id_).first()
-            if not record:
-                return None  # member_id would be present if record exists
-        else:
-            record = LinkedInRecord.query.filter(
-                LinkedInRecord.public_url.ilike("{}".format(public_url_))).all()
-            if not record:
-                return None
-            if len(record) == 1:
-                return record[0]
-            else:
-                print(record)
-                return record[0]
-        if record:
-            return record
-
-        if not record and public_url_:
-            record = LinkedInRecord.query.filter(
-                LinkedInRecord.public_url.ilike("{}".format(public_url_))).all()
-            if not record:
-                return None
-            if len(record) == 1:
-                return record[0]
-            else:
-                print(record)
-                return record[0]
-        return record
-
-    def extract_key_(self, primary_keys):
-        # Either lookup by recruiter member id or url split after /in/
-        keys = dict(member_id=[], public_url=[])
-        for pk in primary_keys:
-            if 'recruiter' in pk:
-                member_match = self.KEY_SEARCH['recruiter'].search(pk)
-                if member_match:
-                    keys['member_id'].append(member_match.group())
-            else:
-                url_match = self.KEY_SEARCH['public'](pk)
-                if url_match:
-                    keys['public_url'].append(url_match)
-
-        return keys
-
-
     def fetch_record_(self, row_data):
+        member_id = row_data.get('member_id', None)
+        if not member_id:
+            return None
 
-        return self.locate_primary_(row_data)
+        record = LinkedInRecord.query.get(member_id)
+        return record
 
     def enrich_record_(self, row_data):
 
         record = self.fetch_record_(row_data)
         if not record:
             return None
-
         contact_records = []
 
         for data_type, data_values in row_data.items():
 
             if not data_values:
                 continue
-            if 'linkedin' in data_type:
+            if 'linkedin' in data_type or 'member_id' in data_type:
                 continue
 
             # Is it email or website?
