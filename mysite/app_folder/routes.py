@@ -243,7 +243,7 @@ def serve_file(cache_id):
 
         data_type_counts = {'email_home': 0, 'email_work': 0, 'website_personal': 0}
         for c in contacts:
-            email, website, personal = list(map(lambda x: getattr(c, x), ['is_email', 'is_website', 'is_personal']))
+            email, website, personal = map(lambda x: getattr(c, x), ['is_email', 'is_website', 'is_personal'])
             if email and personal:
                 data_type = 'email_home'
             elif email and not personal:
@@ -387,6 +387,8 @@ def file_manager_do(category):
         file_new_name = "".join([c for c in file_new_name if c.isalnum() or c in allowchar]).rstrip()
 
         # Find any active caches set them inactive
+        # Simplify this and others to
+        # user.caches.filter(UserCache.active).all()
         active_files = UserCache.query.join(User).filter(User.id == user.id).filter(
             UserCache.active == True).all()
 
