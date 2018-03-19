@@ -230,7 +230,7 @@ class DataMapper(object):
         member_id_, public_url_ = first_or_none(primary_keys, 'member_id'), first_or_none(primary_keys, 'public_url')
 
         if member_id_:
-            record = LinkedInRecord.query.filter_by(member_id_=member_id_).first()
+            record = LinkedInRecord.query.filter_by(member_id=member_id_).first()
         else:
             record = LinkedInRecord.query.filter(
                 LinkedInRecord.public_url.ilike("%{}".format(public_url_))).first()
@@ -296,10 +296,12 @@ class DataMapper(object):
                 crecord = Contact(address=dv, is_email=is_email_, is_personal=is_personal_, is_website=is_website_)
                 db.session.add(crecord)
                 contact_records.append(crecord)
-
-        record.contacts.extend(contact_records)
-        db.session.add(record)
-        return record
+        if contact_records:
+            record.contacts.extend(contact_records)
+            db.session.add(record)
+            return record
+        else:
+            return None
 
     def enrich(self):
 
@@ -309,7 +311,7 @@ class DataMapper(object):
         for d in data_records:
             enriched_record = self.enrich_record_(d)
             if enriched_record:
-                enriched_records.append(enriched_records)
+                enriched_records.append(enriched_record)
         return enriched_records, row_count
 
 
