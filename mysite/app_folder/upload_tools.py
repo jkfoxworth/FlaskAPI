@@ -37,7 +37,6 @@ class UploadSpreadsheet(object):
 
         self.open_file_()
 
-
     def find_file_ext_(self):
         filename = self.request_file.filename
         if not filename:
@@ -226,10 +225,17 @@ class DataMapper(object):
 
     def fetch_record_(self, row_data):
         member_id = row_data.get('member_id', None)
-        if not member_id:
+        linkedin_url = row_data.get('website_linkedin', None)
+        if not member_id and not linkedin_url:
             return None
 
         record = LinkedInRecord.query.get(member_id)
+        if not record:
+            record = LinkedInRecord.query.filter_by(public_url=linkedin_url).all()
+            if len(record) > 1:  # Avoid duplicating
+                return None
+            elif len(record) == 1:
+                return record[0]
         return record
 
     def enrich_record_(self, row_data):
