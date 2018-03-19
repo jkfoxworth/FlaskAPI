@@ -129,6 +129,11 @@ class ContactSpreadsheet(abc.ABC, UploadSpreadsheet):
     def HEADER_SEARCH(self):
         return None
 
+    @property
+    @abc.abstractmethod
+    def IGNORE_PATTERNS(self):
+        return []
+
     @abc.abstractmethod
     def scan_headers_(self):
         relevant_headers = {k: [] for k in self.HEADER_SEARCH.keys()}
@@ -150,9 +155,21 @@ class ContactSpreadsheet(abc.ABC, UploadSpreadsheet):
         for row_data in file_data:
             td = {}
             for data_type, header_names in relevant_headers.items():
-                td[data_type] = [sv for sv in [v for k, v in row_data.items() if k in header_names] if sv != '']
+                td[data_type] = [sv for sv in [v for k, v in row_data.items() if k in header_names] if self.filter_data_(sv, data_type)]
             data_records.append(td)
         return data_records
+
+    @abc.abstractmethod
+    def filter_data_(self, sv, data_type):
+        if sv == '':
+            return False
+        if not self.IGNORE_PATTERNS:
+            return True
+        for ignored in self.IGNORE_PATTERNS:
+            if ignored['in'] not in data_type:
+                continue
+            if ignored['pattern'].search():
+                return False
 
 
 class JobJetSpreadsheet(ContactSpreadsheet):
@@ -164,6 +181,11 @@ class JobJetSpreadsheet(ContactSpreadsheet):
                 'website_personal': re.compile("(Website url \(\d\))", flags=re.IGNORECASE),
                 'website_linkedin': re.compile("(LinkedIn url \(\d\))", flags=re.IGNORECASE),
                 'member_id': re.compile(r"(Tag1)", flags=re.IGNORECASE)}
+
+    @property
+    def IGNORE_PATTERNS(self):
+        return [{'pattern': re.compile(r"(tracking)|(instantcheckmate)", flags=re.IGNORECASE),
+                 'in': ['email', 'website']}]
 
     def __init__(self, request):
         super().__init__(request)
@@ -186,6 +208,9 @@ class JobJetSpreadsheet(ContactSpreadsheet):
     def scan_headers_(self):
         relevant_headers = super().scan_headers_()
         return relevant_headers
+
+    def filter_data_(self, sv, data_type):
+        return super().filter_data_(sv, data_type)
 
 
 class DataMapper(object):
