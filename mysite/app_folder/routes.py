@@ -199,7 +199,6 @@ def do_enrich():
 
     provider = request.form.get('provider')
     if provider == 'Jobjet':
-        print(provider)
         sheet_data = upload_tools.JobJetSpreadsheet(request.files['file'])
 
     else:
@@ -211,7 +210,7 @@ def do_enrich():
     if not enriched_data:
         flash(u'Sheet did not match any records', 'warning')
         return redirect(url_for('show_enrich'))
-    db.session.add(enriched_data)
+    db.session.add_all(enriched_data)
     db.session.commit()
     flash(u'Enriched {} of {} records'.format(len(enriched_data), row_counts), 'success')
     return redirect(url_for('show_enrich'))
