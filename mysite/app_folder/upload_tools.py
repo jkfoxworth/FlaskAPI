@@ -192,12 +192,12 @@ class DataMapper(object):
     def __init__(self, mapped_object):
         self.mapped_object = mapped_object
 
-    def public_search_(key):
-        user_name = re.search(r"(?<=\/in\/)([A-z]+)", key)
+    def public_search_(self, key):
+        user_name = re.search(r"(?<=\/in\/)(.+)", key)
         if user_name:
             return user_name.group()
 
-        alternative_name = re.search(r"(?<=\/pub\/)([A-z]+)", key)
+        alternative_name = re.search(r"(?<=\/pub\/)(.+)", key)
         if alternative_name:
             return alternative_name.group()
         else:
@@ -231,16 +231,32 @@ class DataMapper(object):
 
         if member_id_:
             record = LinkedInRecord.query.filter_by(member_id=member_id_).first()
+            if not record:
+                return None  # member_id would be present if record exists
         else:
             record = LinkedInRecord.query.filter(
-                LinkedInRecord.public_url.ilike("%{}".format(public_url_))).first()
+                LinkedInRecord.public_url.ilike("{}".format(public_url_))).all()
+            if not record:
+                return None
+            if len(record) == 1:
+                return record[0]
+            else:
+                print(record)
+                return record[0]
         if record:
             return record
 
         if not record and public_url_:
             record = LinkedInRecord.query.filter(
-                LinkedInRecord.public_url.ilike("%{}".format(public_url_))).first()
-            return record
+                LinkedInRecord.public_url.ilike("{}".format(public_url_))).all()
+            if not record:
+                return None
+            if len(record) == 1:
+                return record[0]
+            else:
+                print(record)
+                return record[0]
+        return record
 
     def extract_key_(self, primary_keys):
         # Either lookup by recruiter member id or url split after /in/
