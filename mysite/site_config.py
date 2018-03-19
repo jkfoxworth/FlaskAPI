@@ -4,12 +4,14 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 class Config(object):
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'you-will-never-guess'
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///' + os.path.join(basedir, 'app.db')
+    SQLALCHEMY_DATABASE_URI = 'mysql://estasney:password@localhost:3306/profiles2'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_POOL_RECYCLE = 299
     DEBUG = True
-    DEBUG_TB_PROFILER_ENABLED = True
+    USE_DEBUGGER = False
     DEBUG_TB_INTERCEPT_REDIRECTS = False
+    USE_RELOADER = False
+    UPLOAD_FOLDER = os.path.join(basedir, 'app_folder/uploads')
 
 class FConfig(object):
     COUNTRY_DICT = os.path.join(basedir, 'app_folder/country_codes.pkl')

@@ -1,6 +1,7 @@
 import base64
 import io
 import pickle
+import re
 
 import pandas as pd
 
@@ -12,8 +13,9 @@ def db_to_df(data):
         country_dict = pickle.load(cc)
     with open(FConfig.ZIP_DICT, "rb") as zd:
         zip_dict = pickle.load(zd)
+
     df = pd.DataFrame(data)
-    df2 = pd.DataFrame(columns=['Full Name', 'First Name', 'Last Name', 'Metropolitan Area',
+    df2 = pd.DataFrame(columns=['DupCheck', 'Full Name', 'First Name', 'Last Name', 'Metropolitan Area',
                                 'Home State', 'Home Postal Code', 'Home Country', 'Theater', 'Skills and Technologies',
                                 'Company', 'Position Title', 'Prior Employer', 'Prior Position Title',
                                 'Work History - Company', 'Work History - Position title', 'Home Email', 'Work Email',
@@ -45,6 +47,40 @@ def db_to_df(data):
     df2['Hermes Resume'] = df['member_id'].apply(lambda x: make_hermes_link(x))
     df2['Base64-encoded attachment Name'] = df['member_id'] + ".rtf"
     df2['Base64-encoded attachment content'] = df.apply(make_resume_b64, axis=1)
+
+    def dupcheck_search(row):
+        def website_uid(x):
+            s = re.compile(r"(\/in\/)|(\/pub\/)")
+            x = s.sub("|", x)
+            if '|' in x:
+                return x.split("|")[-1]
+            else:
+                return x
+
+        exacts = [col for col in df2.columns if 'email' in col.lower()]
+        sites = [col for col in df2.columns if 'website' in col.lower()]
+        site_val = [row_value for row_value in [row[scol] for scol in sites]]
+        unexacts = list(map(lambda x: website_uid(x), site_val))
+        quoted_search = ["\"{}\"".format(row_value) for row_value in [row[ecol] for ecol in exacts]
+                         if len(row_value) > 1]
+        unquoted_search = ["\"{}\"".format(row_value) for row_value in unexacts if len(row_value) > 1]
+
+        if not quoted_search and not unquoted_search:
+            return ''
+        if quoted_search:
+            search_string = quoted_search
+            if unquoted_search:
+                search_string.extend(unquoted_search)
+        else:
+            if unquoted_search:
+                search_string = unquoted_search
+        if search_string:
+            return " OR ".join(search_string)
+        else:
+            return ""
+
+    df2.fillna('', inplace=True)
+    df2['DupCheck'] = df2.apply(lambda x: dupcheck_search(x), axis=1)
 
     return df2
 
