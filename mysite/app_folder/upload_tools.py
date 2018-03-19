@@ -131,7 +131,7 @@ class ContactSpreadsheet(abc.ABC, UploadSpreadsheet):
 
     @property
     @abc.abstractmethod
-    def IGNORE_PATTERNS(self):
+    def KEEP_PATTERNS(self):
         return []
 
     @abc.abstractmethod
@@ -162,14 +162,18 @@ class ContactSpreadsheet(abc.ABC, UploadSpreadsheet):
     @abc.abstractmethod
     def filter_data_(self, sv, data_type):
         if sv == '':
-            return False
-        if not self.IGNORE_PATTERNS:
+            return None
+        if not self.KEEP_PATTERNS:
             return True
-        for ignored in self.IGNORE_PATTERNS:
-            if ignored['in'] not in data_type:
-                continue
-            if ignored['pattern'].search():
-                return False
+        for kept in self.KEEP_PATTERNS:
+            if kept['in'] in data_type and kept['pattern'] is False:
+                return True
+            for kept_type in kept['in']:
+                if kept_type not in data_type:
+                    continue
+                if kept['pattern'].search(sv) is not None:
+                    return True
+        return False
 
 
 class JobJetSpreadsheet(ContactSpreadsheet):
@@ -183,9 +187,10 @@ class JobJetSpreadsheet(ContactSpreadsheet):
                 'member_id': re.compile(r"(Tag1)", flags=re.IGNORECASE)}
 
     @property
-    def IGNORE_PATTERNS(self):
-        return [{'pattern': re.compile(r"(tracking)|(instantcheckmate)", flags=re.IGNORECASE),
-                 'in': ['email', 'website']}]
+    def KEEP_PATTERNS(self):
+        return [{'pattern': False, 'in': ['email']},
+                {'pattern': re.compile(r"(linkedin)|(github)|(twitter)|(google)|(facebook)", flags=re.IGNORECASE),
+                 'in': ['website']}]
 
     def __init__(self, request):
         super().__init__(request)
