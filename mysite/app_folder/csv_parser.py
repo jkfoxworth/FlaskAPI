@@ -105,6 +105,28 @@ def db_to_df(data):
     df2.columns = map(strip_col_index, df2.columns)
     df2.rename(columns={'Website_LinkedIn': 'Website', 'Website_Personal': 'Website'}, inplace=True)
 
+    # Add Contact Data
+    # If column not present in df, return '' filled column
+    def col_else_blank(target_df, col_name):
+        if col_name in target_df.columns:
+            return target_df[col_name]
+        else:
+            return ''
+
+    df2['Home Email_0'] = col_else_blank(df, 'email_home_0')
+    df2['Home Email_1'] = col_else_blank(df, 'email_home_1')
+    df2['Home Email_2'] = col_else_blank(df, 'email_home_2')
+    df2['Work Email_0'] = col_else_blank(df, 'email_work_0')
+    df2['Website_Personal_0'] = col_else_blank(df, 'website_personal_0')
+
+    # Remove _(single_int) from Header Names
+    def strip_col_index(x):
+        ind_search = re.compile(r"(_\d)")
+        return ind_search.sub("", x)
+
+    df2.columns = map(strip_col_index, df2.columns)
+    df2.rename(columns={'Website_LinkedIn': 'Website', 'Website_Personal': 'Website'}, inplace=True)
+
     return df2
 
 # Content
