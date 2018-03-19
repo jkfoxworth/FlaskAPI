@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from functools import wraps
 from operator import itemgetter
 
-from flask import render_template, redirect, url_for, request, abort, jsonify, Response
+from flask import render_template, redirect, url_for, request, abort, jsonify, Response, flash
 from flask_login import login_user, current_user, logout_user, login_required
 from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer)
@@ -198,26 +198,23 @@ def show_enrich():
 def do_enrich():
 
     provider = request.form.get('provider')
+    if provider == 'Jobjet':
+        print(provider)
+        sheet_data = upload_tools.JobJetSpreadsheet(request.files['file'])
 
+    else:
+        flash(u'Unsupported Provider', 'warning')
+        return redirect(url_for('show_enrich'))
 
-    try:
-        if provider == 'Jobjet':
-            print(provider)
-            sheet_data = upload_tools.JobJetSpreadsheet(request.files['file'])
-
-        else:
-            return redirect(url_for('show_enrich', code="unsupported"))
-
-
-        data_mapper = upload_tools.DataMapper(sheet_data)
-        enriched_data = data_mapper.enrich()
-        db.session.add(enriched_data)
-        db.session.commit()
-        return redirect(url_for('show_enrich', code="success"))
-    except Exception as e:
-        print(e)
-        return redirect(url_for('show_enrich', code="error"))
-
+    data_mapper = upload_tools.DataMapper(sheet_data)
+    enriched_data, row_counts = data_mapper.enrich()
+    if not enriched_data:
+        flash(u'Sheet did not match any records', 'warning')
+        return redirect(url_for('show_enrich'))
+    db.session.add(enriched_data)
+    db.session.commit()
+    flash(u'Enriched {} of {} records'.format(len(enriched_data), row_counts), 'success')
+    return redirect(url_for('show_enrich'))
 
 
 @app_run.route('/download/<cache_id>', methods=['GET'])
