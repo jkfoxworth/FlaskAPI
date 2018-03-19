@@ -192,7 +192,6 @@ class DataMapper(object):
     def __init__(self, mapped_object):
         self.mapped_object = mapped_object
 
-    @staticmethod
     def public_search_(key):
         user_name = re.search(r"(?<=\/in\/)([A-z]+)", key)
         if user_name:
@@ -207,7 +206,6 @@ class DataMapper(object):
     KEY_SEARCH = {'recruiter': re.compile(r"(?<=recruiter\/profile\/)([0-9]+)", flags=re.IGNORECASE),
                   'public': public_search_}
 
-
     def locate_primary_(self, row_data):
         # Fetch the linkedin_website key from the row_data
         primary_keys = row_data.get('website_linkedin', [])
@@ -221,21 +219,28 @@ class DataMapper(object):
             return None
 
         # Prefer member_id
-        member_id_, public_url_ = primary_keys['member_id'][0], primary_keys['public_url'][0]
+
+        def first_or_none(x, k):
+            y = x.get(k, [])
+            if y:
+                return y[0]
+            else:
+                return None
+
+        member_id_, public_url_ = first_or_none(primary_keys, 'member_id'), first_or_none(primary_keys, 'public_url')
 
         if member_id_:
             record = LinkedInRecord.query.filter_by(member_id_=member_id_).first()
         else:
             record = LinkedInRecord.query.filter(
-                LinkedInRecord.public_url_.ilike("%{}".format(public_url_))).first()
+                LinkedInRecord.public_url.ilike("%{}".format(public_url_))).first()
         if record:
             return record
 
         if not record and public_url_:
             record = LinkedInRecord.query.filter(
-                LinkedInRecord.public_url_.ilike("%{}".format(public_url_))).first()
+                LinkedInRecord.public_url.ilike("%{}".format(public_url_))).first()
             return record
-
 
     def extract_key_(self, primary_keys):
         # Either lookup by recruiter member id or url split after /in/
@@ -299,10 +304,13 @@ class DataMapper(object):
     def enrich(self):
 
         data_records = self.mapped_object.records
+        row_count = len(data_records)
         enriched_records = []
         for d in data_records:
-            enriched_records.append(self.enrich_record_(d))
-        return enriched_records
+            enriched_record = self.enrich_record_(d)
+            if enriched_record:
+                enriched_records.append(enriched_records)
+        return enriched_records, row_count
 
 
 

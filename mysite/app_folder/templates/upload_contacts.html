@@ -1,22 +1,14 @@
 {% extends "layout.html" %}
 {% block content %}
-
-{% if code == 'success' %}
-<div class="alert alert-success" role="alert">
-        Uploaded!
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{category}}" role="alert">
+        {{ message }}
     </div>
-
-{% elif code == 'error' %}
-<div class="alert alert-warning" role="alert">
-        Something Went Wrong
-    </div>
-
-{% elif code == 'unsupported' %}
-<div class="alert alert-warning" role="alert">
-        Provider not supported
-    </div>
-
-{% endif %}
+    {% endfor %}
+  {% endif %}
+{% endwith %}
 
 <div class="container-fluid text-center">
 <h2>Upload Spreadsheets Containing Contact Information</h2>
