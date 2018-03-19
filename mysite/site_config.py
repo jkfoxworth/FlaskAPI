@@ -16,11 +16,8 @@ class Config(object):
     TRAP_BAD_REQUEST_ERRORS = True
     TRAP_HTTP_EXCEPTIONS = True
     USE_DEBUGGER = False
-    DEBUG_TB_INTERCEPT_REDIRECTS = False
     USE_RELOADER = False
     UPLOAD_FOLDER = os.path.join(basedir, 'app_folder/uploads')
-    USE_DEBUGGER = False
-    USE_RELOADER = False
 
 
 class FConfig(object):
