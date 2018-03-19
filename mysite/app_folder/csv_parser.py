@@ -15,7 +15,7 @@ def db_to_df(data):
         zip_dict = pickle.load(zd)
 
     df = pd.DataFrame(data)
-    df2 = pd.DataFrame(columns=['DupCheck', 'Full Name', 'First Name', 'Last Name', 'Metropolitan Area',
+    df2 = pd.DataFrame(columns=['DupCheck', 'Hermes ID', 'Full Name', 'First Name', 'Last Name', 'Metropolitan Area',
                                 'Home State', 'Home Postal Code', 'Home Country', 'Theater', 'Skills and Technologies',
                                 'Company', 'Position Title', 'Prior Employer', 'Prior Position Title',
                                 'Work History - Company', 'Work History - Position title', 'Home Email_0',
@@ -23,6 +23,7 @@ def db_to_df(data):
                                 'Mobile Phone', 'Home Phone', 'Work Phone', 'Open To Opportunities', 'Company Follower',
                                 'Graduation Date', 'Summary', 'Website_LinkedIn', 'Website_Personal_0', 'Source',
                                 'Base64-encoded attachment Name', 'Base64-encoded attachment content'])
+    df2['Hermes ID'] = df['member_id']
     df2['Full Name'] = df['first_name'] + " " + df['last_name']
     df2['First Name'] = df['first_name']
     df2['Last Name'] = df['last_name']
