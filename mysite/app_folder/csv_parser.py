@@ -103,6 +103,7 @@ def db_to_df(data):
         return ind_search.sub("", x)
 
     df2.columns = map(strip_col_index, df2.columns)
+    df2.rename(columns={'Website_LinkedIn': 'Website', 'Website_Personal': 'Website'}, inplace=True)
 
     return df2
 
