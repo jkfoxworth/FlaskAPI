@@ -44,7 +44,7 @@ def db_to_df(data, rename_web=True):
     df2['Company Follower'] = df['isCompanyFollower'].apply(lambda x: boolean_to_string(x))
     df2['Graduation Date or Expected Graduation Date'] = df['first_graduation_date']
     df2['Summary'] = df['summary']
-    df2['Website'] = df['public_url']
+    df2['Website_Linkedin'] = df['public_url']
     df2['Resume'] = df.apply(make_resume, axis=1)
     df2['Hermes Resume'] = df['member_id'].apply(lambda x: make_hermes_link(x))
     df2['Base64-encoded attachment Name'] = df['member_id'] + ".rtf"
