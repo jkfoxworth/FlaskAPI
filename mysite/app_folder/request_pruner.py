@@ -1,5 +1,7 @@
 import re
 
+# TODO Prune based on if profile has changed
+# TODO Send additional data from extension to support this
 
 class ProfilePruner(object):
 

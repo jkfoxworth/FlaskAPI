@@ -123,6 +123,8 @@ class UploadSpreadsheet(object):
 
 class ContactSpreadsheet(abc.ABC, UploadSpreadsheet):
 
+    # TODO prevent duplicates
+
     @property
     @abc.abstractmethod
     def HEADER_SEARCH(self):

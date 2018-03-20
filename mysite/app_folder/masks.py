@@ -33,6 +33,7 @@ class SheetMask(abc.ABC):
             df_.rename(columns=self.renames, inplace=True)
         return df_
 
+
 class JobJetMask(SheetMask):
 
     @property

@@ -14,6 +14,13 @@ from app_folder import app_run, db, login, csv_parser, profile_parser, request_p
 from app_folder.masks import JobJetMask
 from app_folder.models import User, LinkedInRecord, UserCache, UserActivity, Cache_Records
 
+# TODO Help section for the download as...
+# TODO Accept url kwarg for download of resume
+# TODO pdf version of resume
+# TODO file sharing
+# TODO associate with Avature projects
+# TODO Remove rows with contact info for Jobjet
+# TODO Weight/filter email providers
 
 def requires_key(func):
     @wraps(func)
