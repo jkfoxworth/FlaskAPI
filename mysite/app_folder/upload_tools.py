@@ -228,14 +228,18 @@ class DataMapper(object):
         linkedin_url = row_data.get('website_linkedin', None)
         if not member_id and not linkedin_url:
             return None
-
-        record = LinkedInRecord.query.get(member_id)
-        if not record:
-            record = LinkedInRecord.query.filter_by(public_url=linkedin_url).all()
+        if member_id:
+            record = LinkedInRecord.query.get(member_id)
+        else:
+            record = None
+        if not record and linkedin_url:
+            record = LinkedInRecord.query.filter(LinkedInRecord.public_url.in_(linkedin_url)).all()
             if len(record) > 1:  # Avoid duplicating
                 return None
             elif len(record) == 1:
                 return record[0]
+            else:
+                return None
         return record
 
     def enrich_record_(self, row_data):
