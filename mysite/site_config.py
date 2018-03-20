@@ -24,3 +24,4 @@ class FConfig(object):
     COUNTRY_DICT = os.path.join(basedir, 'app_folder/country_codes.pkl')
     ZIP_DICT = os.path.join(basedir, 'app_folder/zips_to_states.pkl')
     UPLOAD_FOLDER = os.path.join(basedir, 'app_folder/uploads')
+    HEADERS_JOBJET = os.path.join(basedir, 'app_folder/data_/HEADERS_JOBJET.pkl')

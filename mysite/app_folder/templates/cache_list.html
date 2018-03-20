@@ -23,12 +23,12 @@
 <div class="container-fluid text-center">
 <table class="table">
  <tr class="bg-grey">
-     <th class="text-center">Delete</th>
-     <th class="text-center">File ID</th>
+     <th class="text-center">Download For</th>
      <th class="text-center">File Name</th>
      <th class="text-center">Record Count</th>
      <th class="text-center">Created Date</th>
      <th class="text-center">Active?</th>
+     <th class="text-center">Delete</th>
  </tr>
 
  {% for uf in user_files %}
@@ -39,17 +39,25 @@
         {% set file_id = uf[0] %}
         {% set active_status = uf[4] %}
         <td>
+            <div class="form-group">
+                <label for="file_mask">Download For...</label>
+            <select class="form-control" id="file_mask" name="file_mask" onchange="location = this.value;">
+                <option></option>
+                <option value="/download/{{file_id}}">Avature Upload</option>
+                <option value="/download/{{file_id}}/jobjet">Jobjet Contact Enrichment</option>
+            </select>
+            </div>
+        <td>{{friendly_id}}</td>
+        <td>{{record_count}}</td>
+        <td>{{display_time}}</td>
+        <td>{{active_status}}</td>
+        <td>
             <button class="btn-sm btn-default">
                 <a href="manage/files/delete/{{file_id}}">
                     <span class="glyphicon glyphicon-remove-sign"></span>
                 </a>
             </button>
         </td>
-        <td><a href="/download/{{file_id}}">{{file_id}}</a></td>
-        <td>{{friendly_id}}</td>
-        <td>{{record_count}}</td>
-        <td>{{display_time}}</td>
-        <td>{{active_status}}</td>
     </tr>
  {% endfor %}
 </table>

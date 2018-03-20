@@ -8,7 +8,7 @@ import pandas as pd
 from site_config import FConfig
 
 
-def db_to_df(data):
+def db_to_df(data, rename_web=True):
     with open(FConfig.COUNTRY_DICT, "rb") as cc:
         country_dict = pickle.load(cc)
     with open(FConfig.ZIP_DICT, "rb") as zd:
@@ -104,7 +104,8 @@ def db_to_df(data):
     df2['DupCheck'] = df2.apply(lambda x: dupcheck_search(x), axis=1)
 
     df2.columns = map(strip_col_index, df2.columns)
-    df2.rename(columns={'Website_LinkedIn': 'Website', 'Website_Personal': 'Website'}, inplace=True)
+    if rename_web:
+        df2.rename(columns={'Website_LinkedIn': 'Website', 'Website_Personal': 'Website'}, inplace=True)
 
     # Add Contact Data
     # If column not present in df, return '' filled column
@@ -195,9 +196,11 @@ def to_int(x):
     except ValueError:
         return 0
 
-def db_to_xlsx(data):
+def db_to_xlsx(data, mask=None):
     df = db_to_df(data)
     del data
+    if mask:
+        df = mask.mask_df(df)
     xlsx_data = df_to_xlsx(df)
     return xlsx_data
 
