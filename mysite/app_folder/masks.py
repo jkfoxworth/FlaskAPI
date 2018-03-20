@@ -8,8 +8,9 @@ class SheetMask(abc.ABC):
     """ Accept standard df that will then be masked """
 
     def __init__(self):
-        self.df_ = None
-        self.header_mappings = self.load_headers_()
+        self.renames = None
+        self.keeps = None
+        self.load_headers_()
 
     @property
     @abc.abstractmethod
@@ -19,29 +20,18 @@ class SheetMask(abc.ABC):
     @abc.abstractmethod
     def load_headers_(self):
         with open(getattr(FConfig, self.HEADER_FILE), "rb") as hf:
-            return pickle.load(hf)
-
-    @abc.abstractmethod
-    def do_keeps_(self, df):
-        keep_col = self.header_mappings.get('keeps', None)
-        if keep_col:
-            return df[keep_col]
-        else:
-            return df
-
-    @abc.abstractmethod
-    def do_rename_(self, df):
-        renames = self.header_mappings.get('renames', None)
-        keep_df = self.do_keeps_(df)
-        if renames:
-            return keep_df.rename(columns=renames, inplace=True)
-        else:
-            return keep_df
+            mappings = pickle.load(hf)
+            self.keeps = mappings.get('keeps', None)
+            self.renames = mappings.get('renames', None)
 
     @abc.abstractmethod
     def mask_df(self, df):
-        masked_df = self.do_rename_(df)
-        return masked_df
+        df_ = df.copy(deep=True)
+        if self.keeps:
+            df_.drop([col for col in df_.columns if col not in self.keeps], axis=1, inplace=True)
+        if self.renames:
+            df_.rename(columns=self.renames, inplace=True)
+        return df_
 
 class JobJetMask(SheetMask):
 
@@ -55,16 +45,7 @@ class JobJetMask(SheetMask):
     def load_headers_(self):
         return super().load_headers_()
 
-    def do_keeps_(self, df):
-        return super().do_keeps_(df)
-
-    def do_rename_(self, df):
-        return super().do_rename_(df)
-
     def mask_df(self, df):
-        return super().do_rename_(df)
-
-    def mask_df(self, df):
-        renamed_df = self.do_rename_(df)
-        return renamed_df
+        masked_df = super().mask_df(df)
+        return masked_df
 

@@ -103,10 +103,6 @@ def db_to_df(data, rename_web=True):
     df2.fillna('', inplace=True)
     df2['DupCheck'] = df2.apply(lambda x: dupcheck_search(x), axis=1)
 
-    df2.columns = map(strip_col_index, df2.columns)
-    if rename_web:
-        df2.rename(columns={'Website_LinkedIn': 'Website', 'Website_Personal': 'Website'}, inplace=True)
-
     # Add Contact Data
     # If column not present in df, return '' filled column
     def col_else_blank(target_df, col_name):
@@ -127,7 +123,8 @@ def db_to_df(data, rename_web=True):
         return ind_search.sub("", x)
 
     df2.columns = map(strip_col_index, df2.columns)
-    df2.rename(columns={'Website_LinkedIn': 'Website', 'Website_Personal': 'Website'}, inplace=True)
+    if rename_web:
+        df2.rename(columns={'Website_LinkedIn': 'Website', 'Website_Personal': 'Website'}, inplace=True)
 
     return df2
 
@@ -196,8 +193,8 @@ def to_int(x):
     except ValueError:
         return 0
 
-def db_to_xlsx(data, masker=None):
-    df = db_to_df(data)
+def db_to_xlsx(data, masker=None, rename_web=True):
+    df = db_to_df(data, rename_web)
     del data
     if masker:
         df = masker.mask_df(df)

@@ -217,7 +217,7 @@ def do_enrich():
     return redirect(url_for('show_enrich'))
 
 
-@app_run.route('/download/<cache_id>', methods=['GET'])
+@app_run.route('/download/<cache_id>', defaults={'mask': None}, methods=['GET'])
 @app_run.route('/download/<cache_id>/<mask>', methods=['GET'])
 @login_required
 def serve_file(cache_id, mask):
@@ -286,12 +286,14 @@ def serve_file(cache_id, mask):
     for prof in cached_data:
         data.append(row2dict(prof))
 
-    if mask == 'jobjet':
-        masker = JobJetMask()
-    else:
-        masker = None
+    if mask:
+        if mask == 'jobjet':
+            masker = JobJetMask()
+            xlsx_stream = csv_parser.db_to_xlsx(data, masker, False)
 
-    xlsx_stream = csv_parser.db_to_xlsx(data, masker)
+
+    else:
+        xlsx_stream = csv_parser.db_to_xlsx(data)
 
     # Flask response
     response = Response()
