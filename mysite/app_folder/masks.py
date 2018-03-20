@@ -64,7 +64,7 @@ class JobJetMask(SheetMask):
     def mask_df(self, df):
         return super().do_rename_(df)
 
-    def mask_df(self):
-        renamed_df = self.do_rename_()
+    def mask_df(self, df):
+        renamed_df = self.do_rename_(df)
         return renamed_df
 

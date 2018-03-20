@@ -196,11 +196,11 @@ def to_int(x):
     except ValueError:
         return 0
 
-def db_to_xlsx(data, mask=None):
+def db_to_xlsx(data, masker=None):
     df = db_to_df(data)
     del data
-    if mask:
-        df = mask.mask_df(df)
+    if masker:
+        df = masker.mask_df(df)
     xlsx_data = df_to_xlsx(df)
     return xlsx_data
 
