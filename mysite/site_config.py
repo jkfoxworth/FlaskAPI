@@ -8,11 +8,20 @@ class Config(object):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_POOL_RECYCLE = 299
     DEBUG = True
-    USE_DEBUGGER = False
     DEBUG_TB_INTERCEPT_REDIRECTS = False
+    EXPLAIN_TEMPLATE_LOADING = False
+    PRESERVE_CONTEXT_ON_EXCEPTION = True
+    PROPAGATE_EXCEPTIONS = True
+    TESTING = False
+    TRAP_BAD_REQUEST_ERRORS = True
+    TRAP_HTTP_EXCEPTIONS = True
+    USE_DEBUGGER = False
     USE_RELOADER = False
     UPLOAD_FOLDER = os.path.join(basedir, 'app_folder/uploads')
+
 
 class FConfig(object):
     COUNTRY_DICT = os.path.join(basedir, 'app_folder/country_codes.pkl')
     ZIP_DICT = os.path.join(basedir, 'app_folder/zips_to_states.pkl')
+    UPLOAD_FOLDER = os.path.join(basedir, 'app_folder/uploads')
+    HEADERS_JOBJET = os.path.join(basedir, 'app_folder/data_/HEADERS_JOBJET.pkl')

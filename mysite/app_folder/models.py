@@ -10,14 +10,14 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from app_folder import app_run, db
 from app_folder import login
 
-User_Records = db.Table('User_Records',
-                        db.Column('user_id', db.Integer, db.ForeignKey('Users.id'), primary_key=True),
-                        db.Column('member_id', db.Integer, db.ForeignKey('Profiles.member_id'), primary_key=True)
+User_Records = db.Table('user_records',
+                        db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
+                        db.Column('member_id', db.Integer, db.ForeignKey('profiles.member_id'), primary_key=True)
                         )
 
-Cache_Records = db.Table('Cache_Records',
-                         db.Column('cache_id', db.String(16), db.ForeignKey('UserCache.cache_id'), primary_key=True),
-                         db.Column('member_id', db.Integer, db.ForeignKey('Profiles.member_id'), primary_key=True)
+Cache_Records = db.Table('cache_records',
+                         db.Column('cache_id', db.String(16), db.ForeignKey('usercache.cache_id'), primary_key=True),
+                         db.Column('member_id', db.Integer, db.ForeignKey('profiles.member_id'), primary_key=True)
                          )
 
 
@@ -25,7 +25,7 @@ class LinkedInRecord(db.Model):
     """
     DB Model for Profile Data
     """
-    __tablename__ = 'Profiles'
+    __tablename__ = 'profiles'
     member_id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(128))
     last_name = db.Column(db.String(128))
@@ -76,6 +76,8 @@ class LinkedInRecord(db.Model):
     isCompanyFollower = db.Column(db.Boolean)
     careerInterests = db.Column(db.Boolean)
 
+    contacts = db.relationship("Contact")
+
     def __init__(self, LinkedInProfile):
         """
         :param LinkedInProfile:
@@ -98,16 +100,28 @@ class LinkedInRecord(db.Model):
         setattr(self, k_, v)
 
 
+class Contact(db.Model):
+
+    __tablename__ = "contacts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    is_email = db.Column(db.Boolean)
+    is_website = db.Column(db.Boolean)
+    is_personal = db.Column(db.Boolean)
+    address = db.Column(db.Text)
+    profile_id = db.Column(db.Integer, db.ForeignKey('profiles.member_id'))
+
+
 class UserCache(db.Model):
     """
     DB Model that holds member IDs in cached. Relationship with User (1) to many
     """
-    __tablename__ = "UserCache"
+    __tablename__ = "usercache"
     cache_id = db.Column(db.String(16), primary_key=True)
     active = db.Column(db.Boolean, default=False)
     friendly_id = db.Column(db.Text)
     # We want a backref here so that any updates to user as well as UserCache are reflected on both ends
-    user_id = db.Column(db.Integer, db.ForeignKey('Users.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     profiles = db.relationship('LinkedInRecord', secondary=Cache_Records, lazy=True,
                                backref=db.backref('caches', lazy=True))
     created = db.Column(db.DateTime, default=datetime.now())
@@ -130,7 +144,7 @@ class UserCache(db.Model):
 
 class UserActivity(db.Model):
 
-    __tablename__ = "UserActivity"
+    __tablename__ = "useractivity"
 
     id = db.Column(db.Integer, primary_key=True)
     active = db.Column(db.Boolean, default=True)
@@ -139,12 +153,12 @@ class UserActivity(db.Model):
     new_records = db.Column(db.Integer, default=0)
     # Tally from /prune/
     borrowed_records = db.Column(db.Integer, default=0)
-    user_id = db.Column(db.Integer, db.ForeignKey('Users.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
 
 
 class User(UserMixin, db.Model):
 
-    __tablename__ = "Users"
+    __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
     user_type = db.Column(db.Text, default='normal')

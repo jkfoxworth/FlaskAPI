@@ -4,13 +4,14 @@ from datetime import date, timedelta
 from functools import wraps
 from operator import itemgetter
 
-from flask import render_template, redirect, url_for, request, abort, jsonify, Response
+from flask import render_template, redirect, url_for, request, abort, jsonify, Response, flash
 from flask_login import login_user, current_user, logout_user, login_required
 from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer)
 from werkzeug.datastructures import Headers
 
-from app_folder import app_run, db, login, csv_parser, profile_parser, request_pruner
+from app_folder import app_run, db, login, csv_parser, profile_parser, request_pruner, upload_tools
+from app_folder.masks import JobJetMask
 from app_folder.models import User, LinkedInRecord, UserCache, UserActivity, Cache_Records
 
 
@@ -187,15 +188,44 @@ def fetch_user_caches_view():
 
     return render_template('cache_list.html', user_files=user_files, code=request.args.get('code'))
 
-
-@app_run.route('/download/<cache_id>', methods=['GET'])
+@app_run.route('/enrich', methods=['GET'])
 @login_required
-def serve_file(cache_id):
+def show_enrich():
+    return render_template('upload_contacts.html', code=request.args.get('code'))
+
+
+@app_run.route('/enrich/do', methods=['POST'])
+@login_required
+def do_enrich():
+
+    provider = request.form.get('provider')
+    if provider == 'Jobjet':
+        sheet_data = upload_tools.JobJetSpreadsheet(request.files['file'])
+
+    else:
+        flash(u'Unsupported Provider', 'warning')
+        return redirect(url_for('show_enrich'))
+
+    data_mapper = upload_tools.DataMapper(sheet_data)
+    enriched_data, row_counts = data_mapper.enrich()
+    if not enriched_data:
+        flash(u'Sheet did not match any records', 'warning')
+        return redirect(url_for('show_enrich'))
+    db.session.add_all(enriched_data)
+    db.session.commit()
+    flash(u'Enriched {} of {} records'.format(len(enriched_data), row_counts), 'success')
+    return redirect(url_for('show_enrich'))
+
+
+@app_run.route('/download/<cache_id>', defaults={'mask': None}, methods=['GET'])
+@app_run.route('/download/<cache_id>/<mask>', methods=['GET'])
+@login_required
+def serve_file(cache_id, mask):
 
     current_user_id = current_user.id
 
     # Find User with this ID
-    user = User.query.filter_by(id=current_user_id).first()
+    user = User.query.get(current_user_id)
 
     if user is None or user is False:
         abort(401)
@@ -211,6 +241,32 @@ def serve_file(cache_id):
     cached_data = fetched_cache.profiles
     data = []
 
+    def append_contacts(d, contacts):
+
+        data_type_counts = {'email_home': 0, 'email_work': 0, 'website_personal': 0}
+        for c in contacts:
+            email, website, personal = map(lambda x: getattr(c, x), ['is_email', 'is_website', 'is_personal'])
+            if email and personal:
+                data_type = 'email_home'
+            elif email and not personal:
+                data_type = 'email_work'
+            elif not email and personal:
+                data_type = 'website_personal'
+            else:
+                continue
+            if not c.address:
+                continue
+
+            # Append index of data type to row
+            current_count = data_type_counts[data_type]
+            data_type_ind = data_type + "_{}".format(current_count)
+            td = {data_type_ind: c.address}
+            d.update(td)
+
+            # Increase data type count by 1
+            new_count = current_count + 1
+            data_type_counts.update({data_type: new_count})
+
     def row2dict(row):
         d = {}
         for column in row.__table__.columns:
@@ -220,12 +276,24 @@ def serve_file(cache_id):
             if row_val is None or row_val == 'None':
                 row_val = ''
             d[column.name] = row_val
+
+        # Also add contact data
+        contacts = row.contacts
+        if contacts:
+            append_contacts(d, contacts)
         return d
 
     for prof in cached_data:
         data.append(row2dict(prof))
 
-    xlsx_stream = csv_parser.db_to_xlsx(data)
+    if mask:
+        if mask == 'jobjet':
+            masker = JobJetMask()
+            xlsx_stream = csv_parser.db_to_xlsx(data, masker, False)
+
+
+    else:
+        xlsx_stream = csv_parser.db_to_xlsx(data)
 
     # Flask response
     response = Response()
@@ -328,6 +396,8 @@ def file_manager_do(category):
         file_new_name = "".join([c for c in file_new_name if c.isalnum() or c in allowchar]).rstrip()
 
         # Find any active caches set them inactive
+        # Simplify this and others to
+        # user.caches.filter(UserCache.active).all()
         active_files = UserCache.query.join(User).filter(User.id == user.id).filter(
             UserCache.active == True).all()
 
