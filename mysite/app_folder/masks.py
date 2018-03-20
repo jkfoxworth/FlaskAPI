@@ -1,5 +1,6 @@
 import abc
 import pickle
+import re
 
 from site_config import FConfig
 
@@ -32,6 +33,61 @@ class SheetMask(abc.ABC):
         if self.renames:
             df_.rename(columns=self.renames, inplace=True)
         return df_
+
+class EnrichEmailMask(SheetMask):
+
+    @property
+    @abc.abstractmethod
+    def HEADER_FILE(self):
+        return None
+
+    @property
+    def search_email_col(self):
+        return re.compile(r"")
+
+    def load_headers_(self):
+        super().load_headers_()
+
+    @abc.abstractmethod
+    def find_email_columns_(self, df):
+        em = re.compile(r"(home)(.+)(email)", flags=re.IGNORECASE)
+        keeps = []
+        for c in df.columns:
+            m = em.search(c)
+            if m:
+                keeps.append(c)
+        return keeps
+
+    @abc.abstractmethod
+    def find_linkedin_columns_(self, df):
+        em = re.compile(r"(linkedin)", flags=re.IGNORECASE)
+        keeps = []
+        for c in df.columns:
+            m = em.search(c)
+            if m:
+                keeps.append(c)
+        return keeps
+
+    @abc.abstractmethod
+    def row_conditions_(self, df):
+        email_columns, linkedin_columns = self.find_email_columns_(df), self.find_linkedin_columns_(df)
+        view = df.copy()
+        view.fillna("", inplace=True)
+
+        def get_empties(row, columns, inverse=False):
+            if inverse:
+                return all([row[c]] != '' for c in columns)
+            else:
+                return all([row[c]] == '' for c in columns)
+
+        view = view.loc[(view.apply(lambda x: get_empties(x, email_columns), axis=1)) &
+                        (view.apply(lambda x: get_empties(x, linkedin_columns), axis=1))]
+
+        return view
+
+    def mask_df(self, df):
+        conditional_df = self.row_conditions_(df)
+        return super().mask_df(conditional_df)
 
 
 class JobJetMask(SheetMask):
