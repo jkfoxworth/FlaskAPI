@@ -224,6 +224,7 @@ class DataMapper(object):
 
     def __init__(self, mapped_object):
         self.mapped_object = mapped_object
+        self.key_values = ['linkedin', 'member_id']
 
     def fetch_record_(self, row_data):
         member_id = row_data.get('member_id', None)
@@ -255,7 +256,15 @@ class DataMapper(object):
 
             if not data_values:
                 continue
-            if 'linkedin' in data_type or 'member_id' in data_type:
+            if any([data_type in kv for kv in self.key_values]):  # Linkedin, member_id
+                continue
+
+            if record.contacts:
+                # Check for duplicate values, prevent adding
+                current_contacts_addr = [cr.address for cr in record.contacts]
+                data_values = list(filter(lambda x: x not in current_contacts_addr, data_values))
+
+            if not data_values:
                 continue
 
             # Is it email or website?
