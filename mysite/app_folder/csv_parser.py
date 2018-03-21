@@ -21,7 +21,7 @@ def db_to_df(data, rename_web=True):
                                 'Work History - Company', 'Work History - Position title', 'Home Email_0',
                                 'Home Email_1', 'Home Email_2', 'Home Email_3', 'Work Email_0',
                                 'Mobile Phone', 'Home Phone', 'Work Phone', 'Open To Opportunities', 'Company Follower',
-                                'Graduation Date', 'Summary', 'Website_LinkedIn', 'Website_Personal_0', 'Source',
+                                'Graduation Date or Expected Graduation Date', 'Summary', 'Website_LinkedIn', 'Website_Personal_0', 'Source',
                                 'Base64-encoded attachment Name', 'Base64-encoded attachment content'])
     df2['Hermes ID'] = df['member_id']
     df2['Full Name'] = df['first_name'] + " " + df['last_name']
