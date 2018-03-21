@@ -4,6 +4,10 @@ import re
 
 from site_config import FConfig
 
+#TODO Avature Mask
+    # TODO Associate with Avature Project
+    # TODO Optional Exlcude No Contact Information
+
 
 class SheetMask(abc.ABC):
     """ Accept standard df that will then be masked """

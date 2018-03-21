@@ -7,8 +7,8 @@ import pandas as pd
 
 from site_config import FConfig
 
-
 def db_to_df(data, rename_web=True):
+    # TODO Remove rename_web, change to AvatureMask
     with open(FConfig.COUNTRY_DICT, "rb") as cc:
         country_dict = pickle.load(cc)
     with open(FConfig.ZIP_DICT, "rb") as zd:
